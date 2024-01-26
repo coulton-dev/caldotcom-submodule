@@ -56,6 +56,7 @@ import {
   ArrowButton,
   UserAvatarGroup,
 } from "@calcom/ui";
+import { Ticket } from "@calcom/ui/components/icon";
 import {
   Clipboard,
   Code,
@@ -805,12 +806,17 @@ const CTA = ({ data }: { data: GetByViewerResponse }) => {
     });
 
   return (
-    <CreateButton
-      data-testid="new-event-type"
-      subtitle={t("create_event_on").toUpperCase()}
-      options={profileOptions}
-      createDialog={() => <CreateEventTypeDialog profileOptions={profileOptions} />}
-    />
+    <div className="flex items-center gap-2">
+      <Button href="/one-time-booking" StartIcon={Ticket} color="secondary">
+        {t("one_time_link")}
+      </Button>
+      <CreateButton
+        data-testid="new-event-type"
+        subtitle={t("create_event_on").toUpperCase()}
+        options={profileOptions}
+        createDialog={() => <CreateEventTypeDialog profileOptions={profileOptions} />}
+      />
+    </div>
   );
 };
 
