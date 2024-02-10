@@ -2,10 +2,12 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import React, { useState } from "react";
+import { Drawer as DrawerPrimitive } from "vaul";
 
 import classNames from "@calcom/lib/classNames";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import useMediaQuery from "@calcom/lib/hooks/useMediaQuery";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
 
 import type { ButtonProps } from "../../components/button";
@@ -31,6 +33,7 @@ export function Dialog(props: DialogProps) {
   const searchParams = useCompatSearchParams();
   const newSearchParams = new URLSearchParams(searchParams ?? undefined);
   const { children, name, ...dialogProps } = props;
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // only used if name is set
   const [dialogState, setDialogState] = useState(dialogProps.open ? DIALOG_STATE.OPEN : DIALOG_STATE.CLOSED);
@@ -68,8 +71,65 @@ export function Dialog(props: DialogProps) {
     }
   }
 
+  if (isMobile) return <DrawerPrimitive.Root {...dialogProps}>{children}</DrawerPrimitive.Root>;
   return <DialogPrimitive.Root {...dialogProps}>{children}</DialogPrimitive.Root>;
 }
+
+function DialogPortalWrapper({ children }: { children: ReactNode }) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  if (isMobile) return <DrawerPrimitive.Portal>{children}</DrawerPrimitive.Portal>;
+  return <DialogPrimitive.Portal>{children}</DialogPrimitive.Portal>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DialogContentWrapper({ children, ...props }: any) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const { enableOverflow, forwardedRef, ...rest } = props;
+  if (isMobile) {
+    return (
+      <DrawerPrimitive.Content
+        {...rest}
+        className={classNames(
+          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 w-full rounded-md text-left shadow-xl after:!sticky focus-visible:outline-none sm:align-middle",
+          props.size == "xl"
+            ? "px-8 pt-8"
+            : props.size == "lg"
+            ? "px-8 pt-8"
+            : props.size == "md"
+            ? "px-8 pt-8"
+            : "px-8 pt-8",
+          "max-h-[95vh]",
+          enableOverflow ? "overflow-auto" : "overflow-visible",
+          `${props.className || ""}`
+        )}
+        ref={forwardedRef}>
+        <div className="bg-muted mx-auto mt-4 h-2 w-[100px] rounded-full" />
+        {children}
+      </DrawerPrimitive.Content>
+    );
+  }
+  return (
+    <DialogPrimitive.Content
+      {...rest}
+      className={classNames(
+        "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
+        props.size == "xl"
+          ? "px-8 pt-8 sm:max-w-[90rem]"
+          : props.size == "lg"
+          ? "px-8 pt-8 sm:max-w-[70rem]"
+          : props.size == "md"
+          ? "px-8 pt-8 sm:max-w-[48rem]"
+          : "px-8 pt-8 sm:max-w-[35rem]",
+        "max-h-[95vh]",
+        enableOverflow ? "overflow-auto" : "overflow-visible",
+        `${props.className || ""}`
+      )}
+      ref={forwardedRef}>
+      {children}
+    </DialogPrimitive.Content>
+  );
+}
+
 type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content"]> & {
   size?: "xl" | "lg" | "md";
   type?: "creation" | "confirmation";
@@ -85,24 +145,9 @@ type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content
 export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
   ({ children, title, Icon, enableOverflow, type = "creation", ...props }, forwardedRef) => {
     return (
-      <DialogPrimitive.Portal>
+      <DialogPortalWrapper>
         <DialogPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
-        <DialogPrimitive.Content
-          {...props}
-          className={classNames(
-            "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
-            props.size == "xl"
-              ? "px-8 pt-8 sm:max-w-[90rem]"
-              : props.size == "lg"
-              ? "px-8 pt-8 sm:max-w-[70rem]"
-              : props.size == "md"
-              ? "px-8 pt-8 sm:max-w-[48rem]"
-              : "px-8 pt-8 sm:max-w-[35rem]",
-            "max-h-[95vh]",
-            enableOverflow ? "overflow-auto" : "overflow-visible",
-            `${props.className || ""}`
-          )}
-          ref={forwardedRef}>
+        <DialogContentWrapper {...props} enableOverflow={enableOverflow} forwardedRef={forwardedRef}>
           {type === "creation" && (
             <div>
               <DialogHeader title={title} subtitle={props.description} />
@@ -125,8 +170,8 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
             </div>
           )}
           {!type && children}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
+        </DialogContentWrapper>
+      </DialogPortalWrapper>
     );
   }
 );
@@ -175,6 +220,22 @@ DialogContent.displayName = "DialogContent";
 export const DialogTrigger = DialogPrimitive.Trigger;
 // export const DialogClose = DialogPrimitive.Close;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DialogCloseWrapper({ children, ...props }: any) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  if (isMobile)
+    return (
+      <DrawerPrimitive.Close asChild {...props}>
+        {children}
+      </DrawerPrimitive.Close>
+    );
+  return (
+    <DialogPrimitive.Close asChild {...props}>
+      {children}
+    </DialogPrimitive.Close>
+  );
+}
+
 export function DialogClose(
   props: {
     "data-testid"?: string;
@@ -187,7 +248,7 @@ export function DialogClose(
 ) {
   const { t } = useLocale();
   return (
-    <DialogPrimitive.Close asChild {...props.dialogCloseProps}>
+    <DialogCloseWrapper {...props.dialogCloseProps}>
       {/* This will require the i18n string passed in */}
       <Button
         data-testid={props["data-testid"] || "dialog-rejection"}
@@ -195,6 +256,6 @@ export function DialogClose(
         {...props}>
         {props.children ? props.children : t("Close")}
       </Button>
-    </DialogPrimitive.Close>
+    </DialogCloseWrapper>
   );
 }
