@@ -77,8 +77,19 @@ export function Dialog(props: DialogProps) {
 
 function DialogPortalWrapper({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  if (isMobile) return <DrawerPrimitive.Portal>{children}</DrawerPrimitive.Portal>;
-  return <DialogPrimitive.Portal>{children}</DialogPrimitive.Portal>;
+  if (isMobile)
+    return (
+      <DrawerPrimitive.Portal>
+        <DrawerPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
+        {children}
+      </DrawerPrimitive.Portal>
+    );
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
+      {children}
+    </DialogPrimitive.Portal>
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,7 +157,6 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
   ({ children, title, Icon, enableOverflow, type = "creation", ...props }, forwardedRef) => {
     return (
       <DialogPortalWrapper>
-        <DialogPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
         <DialogContentWrapper {...props} enableOverflow={enableOverflow} forwardedRef={forwardedRef}>
           {type === "creation" && (
             <div>
@@ -198,6 +208,7 @@ export function DialogHeader(props: DialogHeaderProps) {
 }
 
 export function DialogFooter(props: { children: ReactNode; className?: string; showDivider?: boolean }) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   return (
     <div className={classNames("bg-default sticky bottom-0", props.className)}>
       {props.showDivider && (
@@ -206,8 +217,9 @@ export function DialogFooter(props: { children: ReactNode; className?: string; s
       )}
       <div
         className={classNames(
-          "flex justify-end space-x-2 pb-4 pt-4 rtl:space-x-reverse",
-          !props.showDivider && "pb-8"
+          "flex justify-end space-x-2 rtl:space-x-reverse",
+          isMobile ? "pb-2 pt-2" : "pb-4 pt-4",
+          !props.showDivider && (isMobile ? "pb-6" : "pb-8")
         )}>
         {props.children}
       </div>
