@@ -208,7 +208,6 @@ export function DialogHeader(props: DialogHeaderProps) {
 }
 
 export function DialogFooter(props: { children: ReactNode; className?: string; showDivider?: boolean }) {
-  const isMobile = useMediaQuery("(max-width: 768px)");
   return (
     <div className={classNames("bg-default sticky bottom-0", props.className)}>
       {props.showDivider && (
@@ -217,9 +216,8 @@ export function DialogFooter(props: { children: ReactNode; className?: string; s
       )}
       <div
         className={classNames(
-          "flex justify-end space-x-2 rtl:space-x-reverse",
-          isMobile ? "pb-2 pt-2" : "pb-4 pt-4",
-          !props.showDivider && (isMobile ? "pb-6" : "pb-8")
+          "flex justify-end space-x-2 pb-2 pt-2 rtl:space-x-reverse md:pb-4 md:pt-4",
+          !props.showDivider && "pb-6 md:pb-8"
         )}>
         {props.children}
       </div>
@@ -232,17 +230,20 @@ DialogContent.displayName = "DialogContent";
 export const DialogTrigger = DialogPrimitive.Trigger;
 // export const DialogClose = DialogPrimitive.Close;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DialogCloseWrapper({ children, ...props }: any) {
+function DialogCloseWrapper(props: {
+  children: ReactNode;
+  dialogCloseProps?: React.ComponentProps<(typeof DialogPrimitive)["Close"]>;
+}) {
+  const { children, ...rest } = props;
   const isMobile = useMediaQuery("(max-width: 768px)");
   if (isMobile)
     return (
-      <DrawerPrimitive.Close asChild {...props}>
+      <DrawerPrimitive.Close asChild {...rest}>
         {children}
       </DrawerPrimitive.Close>
     );
   return (
-    <DialogPrimitive.Close asChild {...props}>
+    <DialogPrimitive.Close asChild {...rest}>
       {children}
     </DialogPrimitive.Close>
   );
