@@ -92,14 +92,19 @@ function DialogPortalWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DialogContentWrapper({ children, ...props }: any) {
+function DialogContentWrapper(
+  props: {
+    children?: ReactNode;
+    forwardedRef?: React.ForwardedRef<HTMLDivElement>;
+    className?: string;
+  } & (DialogContentProps | DrawerContentProps)
+) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const { enableOverflow, forwardedRef, ...rest } = props;
+  const { enableOverflow, forwardedRef, children, ...rest } = props;
   if (isMobile) {
     return (
       <DrawerPrimitive.Content
-        {...rest}
+        {...(rest as DrawerContentProps)}
         className={classNames(
           "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 w-full rounded-md text-left shadow-xl after:!sticky focus-visible:outline-none sm:align-middle",
           props.size == "xl"
@@ -121,7 +126,7 @@ function DialogContentWrapper({ children, ...props }: any) {
   }
   return (
     <DialogPrimitive.Content
-      {...rest}
+      {...(rest as DialogContentProps)}
       className={classNames(
         "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
         props.size == "xl"
@@ -141,7 +146,10 @@ function DialogContentWrapper({ children, ...props }: any) {
   );
 }
 
-type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content"]> & {
+type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content"]> & ContentProps;
+type DrawerContentProps = React.ComponentProps<(typeof DrawerPrimitive)["Content"]> & ContentProps;
+
+type ContentProps = {
   size?: "xl" | "lg" | "md";
   type?: "creation" | "confirmation";
   title?: string;
@@ -153,7 +161,7 @@ type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content
 };
 
 // enableOverflow:- use this prop whenever content inside DialogContent could overflow and require scrollbar
-export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
+export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps | DrawerContentProps>(
   ({ children, title, Icon, enableOverflow, type = "creation", ...props }, forwardedRef) => {
     return (
       <DialogPortalWrapper>
