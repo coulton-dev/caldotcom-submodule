@@ -106,21 +106,18 @@ function DialogContentWrapper(
       <DrawerPrimitive.Content
         {...(rest as DrawerContentProps)}
         className={classNames(
-          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 w-full rounded-md text-left shadow-xl after:!sticky focus-visible:outline-none sm:align-middle",
-          props.size == "xl"
-            ? "px-8 pt-8"
-            : props.size == "lg"
-            ? "px-8 pt-8"
-            : props.size == "md"
-            ? "px-8 pt-8"
-            : "px-8 pt-8",
-          "max-h-[95vh]",
-          enableOverflow ? "overflow-auto" : "overflow-visible",
+          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 flex max-h-[95vh] w-full flex-col rounded-t-md text-left shadow-xl after:!hidden focus-visible:outline-none sm:align-middle",
           `${props.className || ""}`
         )}
         ref={forwardedRef}>
         <div className="bg-muted mx-auto mt-4 h-2 w-[100px] rounded-full" />
-        {children}
+        <div
+          className={classNames(
+            "scroll-bar mx-auto w-full max-w-md rounded-t-md px-8 pt-8",
+            enableOverflow ? "overflow-auto" : "overflow-visible"
+          )}>
+          {children}
+        </div>
       </DrawerPrimitive.Content>
     );
   }
