@@ -2,21 +2,35 @@ import type { Auth } from "googleapis";
 import { google } from "googleapis";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { WEBAPP_URL_FOR_OAUTH, WEBAPP_URL } from "@calcom/lib/constants";
+import { handleWatchCalendar } from "@calcom/features/calendar-cache/lib/handleWatchCalendar";
+import { getFeatureFlagMap } from "@calcom/features/flags/server/utils";
+import { WEBAPP_URL, WEBAPP_URL_FOR_OAUTH } from "@calcom/lib/constants";
 import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
 import { HttpError } from "@calcom/lib/http-error";
 import logger from "@calcom/lib/logger";
 import { defaultHandler, defaultResponder } from "@calcom/lib/server";
 import prisma from "@calcom/prisma";
 import { Prisma } from "@calcom/prisma/client";
+import { credentialForCalendarServiceSelect } from "@calcom/prisma/selects/credential";
 
-import getAppKeysFromSlug from "../../_utils/getAppKeysFromSlug";
+import { getCalendar } from "../../_utils/getCalendar";
 import getInstalledAppPath from "../../_utils/getInstalledAppPath";
 import { decodeOAuthState } from "../../_utils/oauth/decodeOAuthState";
+import { getGoogleAppKeys } from "../lib/getGoogleAppKeys";
 import { scopes } from "./add";
 
-let client_id = "";
-let client_secret = "";
+async function getWatchedCalendar(credential: Parameters<typeof getCalendar>[0], externalId: string) {
+  const flags = await getFeatureFlagMap(prisma);
+  if (!flags["calendar-cache"]) {
+    logger.info(
+      '[getWatchedCalendar] Skipping watching calendar due to "calendar-cache" flag being disabled'
+    );
+    return;
+  }
+  const calendar = await getCalendar(credential);
+  if (!calendar) return;
+  return handleWatchCalendar(calendar, externalId);
+}
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { code } = req.query;
@@ -38,12 +52,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     throw new HttpError({ statusCode: 401, message: "You must be logged in to do this" });
   }
 
-  const appKeys = await getAppKeysFromSlug("google-calendar");
-  if (typeof appKeys.client_id === "string") client_id = appKeys.client_id;
-  if (typeof appKeys.client_secret === "string") client_secret = appKeys.client_secret;
-  if (!client_id) throw new HttpError({ statusCode: 400, message: "Google client_id missing." });
-  if (!client_secret) throw new HttpError({ statusCode: 400, message: "Google client_secret missing." });
-
+  const { client_id, client_secret } = await getGoogleAppKeys();
   const redirect_uri = `${WEBAPP_URL_FOR_OAUTH}/api/integrations/googlecalendar/callback`;
 
   const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uri);
@@ -104,16 +113,23 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
         userId: req.session.user.id,
         appId: "google-calendar",
       },
+      select: credentialForCalendarServiceSelect,
     });
     // Wrapping in a try/catch to reduce chance of race conditions-
     // also this improves performance for most of the happy-paths.
     try {
+      const watchedCalendar = await getWatchedCalendar(credential, primaryCal.id);
       await prisma.selectedCalendar.create({
         data: {
           userId: req.session.user.id,
           externalId: primaryCal.id,
           credentialId: credential.id,
           integration: "google_calendar",
+          googleChannelId: watchedCalendar?.id,
+          googleChannelKind: watchedCalendar?.kind,
+          googleChannelResourceId: watchedCalendar?.resourceId,
+          googleChannelResourceUri: watchedCalendar?.resourceUri,
+          googleChannelExpiration: watchedCalendar?.expiration,
         },
       });
     } catch (error) {
