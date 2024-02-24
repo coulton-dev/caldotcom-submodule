@@ -106,14 +106,14 @@ function DialogContentWrapper(
       <DrawerPrimitive.Content
         {...(rest as DrawerContentProps)}
         className={classNames(
-          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 flex max-h-[95vh] w-full flex-col rounded-t-md text-left shadow-xl after:!hidden focus-visible:outline-none sm:align-middle",
+          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 flex max-h-[95vh] w-full flex-col overflow-visible rounded-t-md text-left shadow-xl after:!hidden focus-visible:outline-none sm:align-middle",
           `${props.className || ""}`
         )}
         ref={forwardedRef}>
         <div className="bg-muted mx-auto mt-4 h-2 w-[100px] rounded-full" />
         <div
           className={classNames(
-            "scroll-bar mx-auto w-full max-w-md rounded-t-md px-8 pt-8",
+            "scroll-bar mx-auto w-full rounded-t-md px-8 pt-8",
             enableOverflow ? "overflow-auto" : "overflow-visible"
           )}>
           {children}
