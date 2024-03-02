@@ -1,7 +1,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import React, { useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
 import classNames from "@calcom/lib/classNames";
@@ -16,6 +16,32 @@ import { Button } from "../../components/button";
 export type DialogProps = React.ComponentProps<(typeof DialogPrimitive)["Root"]> & {
   name?: string;
   clearQueryParamsOnClose?: string[];
+  useDialogForMobile?: boolean;
+};
+
+type DialogContextProps = {
+  _useDialogForMobile?: boolean;
+};
+
+const DialogContext = createContext<DialogContextProps>({
+  _useDialogForMobile: false,
+});
+
+type DialogProviderProps = {
+  children: ReactNode;
+  useDialogForMobile?: boolean;
+};
+
+const DialogProvider = ({ children, useDialogForMobile = false }: DialogProviderProps) => {
+  const [_useDialogForMobile] = useState(useDialogForMobile);
+  return <DialogContext.Provider value={{ _useDialogForMobile }}>{children}</DialogContext.Provider>;
+};
+
+const useDialogMediaQuery = () => {
+  const { _useDialogForMobile } = useContext(DialogContext);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  if (_useDialogForMobile) return false;
+  return isMobile;
 };
 
 const enum DIALOG_STATE {
@@ -32,8 +58,9 @@ export function Dialog(props: DialogProps) {
   const pathname = usePathname();
   const searchParams = useCompatSearchParams();
   const newSearchParams = new URLSearchParams(searchParams ?? undefined);
-  const { children, name, ...dialogProps } = props;
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const { children, name, useDialogForMobile, ...dialogProps } = props;
+  let isMobile = useMediaQuery("(max-width: 768px)");
+  isMobile = useDialogForMobile ? false : isMobile;
 
   // only used if name is set
   const [dialogState, setDialogState] = useState(dialogProps.open ? DIALOG_STATE.OPEN : DIALOG_STATE.CLOSED);
@@ -71,12 +98,19 @@ export function Dialog(props: DialogProps) {
     }
   }
 
-  if (isMobile) return <DrawerPrimitive.Root {...dialogProps}>{children}</DrawerPrimitive.Root>;
-  return <DialogPrimitive.Root {...dialogProps}>{children}</DialogPrimitive.Root>;
+  return (
+    <DialogProvider useDialogForMobile={useDialogForMobile}>
+      {isMobile ? (
+        <DrawerPrimitive.Root {...dialogProps}>{children}</DrawerPrimitive.Root>
+      ) : (
+        <DialogPrimitive.Root {...dialogProps}>{children}</DialogPrimitive.Root>
+      )}
+    </DialogProvider>
+  );
 }
 
 function DialogPortalWrapper({ children }: { children: ReactNode }) {
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useDialogMediaQuery();
   if (isMobile)
     return (
       <DrawerPrimitive.Portal>
@@ -99,7 +133,7 @@ function DialogContentWrapper(
     className?: string;
   } & (DialogContentProps | DrawerContentProps)
 ) {
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useDialogMediaQuery();
   const { enableOverflow, forwardedRef, children, ...rest } = props;
   if (isMobile) {
     return (
@@ -240,7 +274,7 @@ function DialogCloseWrapper(props: {
   dialogCloseProps?: React.ComponentProps<(typeof DialogPrimitive)["Close"]>;
 }) {
   const { children, ...rest } = props;
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useDialogMediaQuery();
   if (isMobile)
     return (
       <DrawerPrimitive.Close asChild {...rest}>
