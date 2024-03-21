@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { SetStateAction, Dispatch } from "react";
 import { useForm } from "react-hook-form";
 
 import { ErrorCode } from "@calcom/features/auth/lib/ErrorCode";
@@ -12,7 +13,7 @@ import TwoFactorAuthAPI from "./TwoFactorAuthAPI";
 
 interface DisableTwoFactorAuthModalProps {
   open: boolean;
-  onOpenChange: () => void;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   disablePassword?: boolean;
   /** Called when the user closes the modal without disabling two-factor auth */
   onCancel: () => void;

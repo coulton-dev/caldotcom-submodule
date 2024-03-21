@@ -179,6 +179,7 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
   return (
     <Dialog
       name="inviteModal"
+      useDialogForMobile
       open={props.isOpen}
       onOpenChange={() => {
         props.onExit();

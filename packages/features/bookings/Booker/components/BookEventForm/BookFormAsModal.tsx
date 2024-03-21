@@ -49,7 +49,7 @@ export const BookFormAsModal = ({
   children: ReactNode;
 }) => {
   return (
-    <Dialog open={visible} onOpenChange={onCancel}>
+    <Dialog open={visible} onOpenChange={onCancel} useDialogForMobile>
       <DialogContent
         type={undefined}
         enableOverflow

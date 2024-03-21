@@ -1,11 +1,13 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import React, { useState } from "react";
+import React, { createContext, useContext, useState } from "react";
+import { Drawer as DrawerPrimitive } from "vaul";
 
 import classNames from "@calcom/lib/classNames";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import useMediaQuery from "@calcom/lib/hooks/useMediaQuery";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
 
 import type { ButtonProps } from "../../components/button";
@@ -14,6 +16,32 @@ import { Button } from "../../components/button";
 export type DialogProps = React.ComponentProps<(typeof DialogPrimitive)["Root"]> & {
   name?: string;
   clearQueryParamsOnClose?: string[];
+  useDialogForMobile?: boolean;
+};
+
+type DialogContextProps = {
+  _useDialogForMobile?: boolean;
+};
+
+const DialogContext = createContext<DialogContextProps>({
+  _useDialogForMobile: false,
+});
+
+type DialogProviderProps = {
+  children: ReactNode;
+  useDialogForMobile?: boolean;
+};
+
+const DialogProvider = ({ children, useDialogForMobile = false }: DialogProviderProps) => {
+  const [_useDialogForMobile] = useState(useDialogForMobile);
+  return <DialogContext.Provider value={{ _useDialogForMobile }}>{children}</DialogContext.Provider>;
+};
+
+const useDialogMediaQuery = () => {
+  const { _useDialogForMobile } = useContext(DialogContext);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  if (_useDialogForMobile) return false;
+  return isMobile;
 };
 
 const enum DIALOG_STATE {
@@ -30,7 +58,9 @@ export function Dialog(props: DialogProps) {
   const pathname = usePathname();
   const searchParams = useCompatSearchParams();
   const newSearchParams = new URLSearchParams(searchParams ?? undefined);
-  const { children, name, ...dialogProps } = props;
+  const { children, name, useDialogForMobile, ...dialogProps } = props;
+  let isMobile = useMediaQuery("(max-width: 768px)");
+  isMobile = useDialogForMobile ? false : isMobile;
 
   // only used if name is set
   const [dialogState, setDialogState] = useState(dialogProps.open ? DIALOG_STATE.OPEN : DIALOG_STATE.CLOSED);
@@ -68,9 +98,89 @@ export function Dialog(props: DialogProps) {
     }
   }
 
-  return <DialogPrimitive.Root {...dialogProps}>{children}</DialogPrimitive.Root>;
+  return (
+    <DialogProvider useDialogForMobile={useDialogForMobile}>
+      {isMobile ? (
+        <DrawerPrimitive.Root {...dialogProps}>{children}</DrawerPrimitive.Root>
+      ) : (
+        <DialogPrimitive.Root {...dialogProps}>{children}</DialogPrimitive.Root>
+      )}
+    </DialogProvider>
+  );
 }
-type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content"]> & {
+
+function DialogPortalWrapper({ children }: { children: ReactNode }) {
+  const isMobile = useDialogMediaQuery();
+  if (isMobile)
+    return (
+      <DrawerPrimitive.Portal>
+        <DrawerPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
+        {children}
+      </DrawerPrimitive.Portal>
+    );
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
+      {children}
+    </DialogPrimitive.Portal>
+  );
+}
+
+function DialogContentWrapper(
+  props: {
+    children?: ReactNode;
+    forwardedRef?: React.ForwardedRef<HTMLDivElement>;
+    className?: string;
+  } & (DialogContentProps | DrawerContentProps)
+) {
+  const isMobile = useDialogMediaQuery();
+  const { enableOverflow, forwardedRef, children, ...rest } = props;
+  if (isMobile) {
+    return (
+      <DrawerPrimitive.Content
+        {...(rest as DrawerContentProps)}
+        className={classNames(
+          "fadeIn bg-default scroll-bar fixed inset-x-0 bottom-0 z-50 flex max-h-[95vh] w-full flex-col overflow-visible rounded-t-md text-left shadow-xl after:!hidden focus-visible:outline-none sm:align-middle",
+          `${props.className || ""}`
+        )}
+        ref={forwardedRef}>
+        <div className="bg-muted mx-auto mt-4 h-2 w-[100px] rounded-full" />
+        <div
+          className={classNames(
+            "scroll-bar mx-auto w-full rounded-t-md px-8 pt-8",
+            enableOverflow ? "overflow-auto" : "overflow-visible"
+          )}>
+          {children}
+        </div>
+      </DrawerPrimitive.Content>
+    );
+  }
+  return (
+    <DialogPrimitive.Content
+      {...(rest as DialogContentProps)}
+      className={classNames(
+        "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
+        props.size == "xl"
+          ? "px-8 pt-8 sm:max-w-[90rem]"
+          : props.size == "lg"
+          ? "px-8 pt-8 sm:max-w-[70rem]"
+          : props.size == "md"
+          ? "px-8 pt-8 sm:max-w-[48rem]"
+          : "px-8 pt-8 sm:max-w-[35rem]",
+        "max-h-[95vh]",
+        enableOverflow ? "overflow-auto" : "overflow-visible",
+        `${props.className || ""}`
+      )}
+      ref={forwardedRef}>
+      {children}
+    </DialogPrimitive.Content>
+  );
+}
+
+type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content"]> & ContentProps;
+type DrawerContentProps = React.ComponentProps<(typeof DrawerPrimitive)["Content"]> & ContentProps;
+
+type ContentProps = {
   size?: "xl" | "lg" | "md";
   type?: "creation" | "confirmation";
   title?: string;
@@ -82,27 +192,11 @@ type DialogContentProps = React.ComponentProps<(typeof DialogPrimitive)["Content
 };
 
 // enableOverflow:- use this prop whenever content inside DialogContent could overflow and require scrollbar
-export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
+export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps | DrawerContentProps>(
   ({ children, title, Icon, enableOverflow, type = "creation", ...props }, forwardedRef) => {
     return (
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fadeIn fixed inset-0 z-50 bg-neutral-800 bg-opacity-70 transition-opacity dark:bg-opacity-70 " />
-        <DialogPrimitive.Content
-          {...props}
-          className={classNames(
-            "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
-            props.size == "xl"
-              ? "px-8 pt-8 sm:max-w-[90rem]"
-              : props.size == "lg"
-              ? "px-8 pt-8 sm:max-w-[70rem]"
-              : props.size == "md"
-              ? "px-8 pt-8 sm:max-w-[48rem]"
-              : "px-8 pt-8 sm:max-w-[35rem]",
-            "max-h-[95vh]",
-            enableOverflow ? "overflow-auto" : "overflow-visible",
-            `${props.className || ""}`
-          )}
-          ref={forwardedRef}>
+      <DialogPortalWrapper>
+        <DialogContentWrapper {...props} enableOverflow={enableOverflow} forwardedRef={forwardedRef}>
           {type === "creation" && (
             <div>
               <DialogHeader title={title} subtitle={props.description} />
@@ -125,8 +219,8 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
             </div>
           )}
           {!type && children}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
+        </DialogContentWrapper>
+      </DialogPortalWrapper>
     );
   }
 );
@@ -161,8 +255,8 @@ export function DialogFooter(props: { children: ReactNode; className?: string; s
       )}
       <div
         className={classNames(
-          "flex justify-end space-x-2 pb-4 pt-4 rtl:space-x-reverse",
-          !props.showDivider && "pb-8"
+          "flex justify-end space-x-2 pb-2 pt-2 rtl:space-x-reverse md:pb-4 md:pt-4",
+          !props.showDivider && "pb-6 md:pb-8"
         )}>
         {props.children}
       </div>
@@ -174,6 +268,25 @@ DialogContent.displayName = "DialogContent";
 
 export const DialogTrigger = DialogPrimitive.Trigger;
 // export const DialogClose = DialogPrimitive.Close;
+
+function DialogCloseWrapper(props: {
+  children: ReactNode;
+  dialogCloseProps?: React.ComponentProps<(typeof DialogPrimitive)["Close"]>;
+}) {
+  const { children, ...rest } = props;
+  const isMobile = useDialogMediaQuery();
+  if (isMobile)
+    return (
+      <DrawerPrimitive.Close asChild {...rest}>
+        {children}
+      </DrawerPrimitive.Close>
+    );
+  return (
+    <DialogPrimitive.Close asChild {...rest}>
+      {children}
+    </DialogPrimitive.Close>
+  );
+}
 
 export function DialogClose(
   props: {
@@ -187,7 +300,7 @@ export function DialogClose(
 ) {
   const { t } = useLocale();
   return (
-    <DialogPrimitive.Close asChild {...props.dialogCloseProps}>
+    <DialogCloseWrapper {...props.dialogCloseProps}>
       {/* This will require the i18n string passed in */}
       <Button
         data-testid={props["data-testid"] || "dialog-rejection"}
@@ -195,6 +308,6 @@ export function DialogClose(
         {...props}>
         {props.children ? props.children : t("Close")}
       </Button>
-    </DialogPrimitive.Close>
+    </DialogCloseWrapper>
   );
 }
