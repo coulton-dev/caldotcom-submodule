@@ -1120,11 +1120,11 @@ async function handler(
 
   let rescheduleUid = reqBody.rescheduleUid;
 
+  const startAsDate = dayjs(reqBody.start).toDate();
   if (
     Object.prototype.hasOwnProperty.call(eventType, "bookingLimits") ||
     Object.prototype.hasOwnProperty.call(eventType, "durationLimits")
   ) {
-    const startAsDate = dayjs(reqBody.start).toDate();
     if (
       eventType.bookingLimits &&
       /* Empty object is truthy */ Object.keys(eventType.bookingLimits).length > 0
@@ -1140,6 +1140,26 @@ async function handler(
     if (eventType.durationLimits) {
       await checkDurationLimits(eventType.durationLimits as IntervalLimit, startAsDate, eventType.id);
     }
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      bookingLimits: true,
+    },
+  });
+
+  if (currentUser?.bookingLimits && Object.keys(currentUser.bookingLimits).length > 0) {
+    await checkBookingLimits(
+      currentUser.bookingLimits as IntervalLimit,
+      startAsDate,
+      undefined,
+      rescheduleUid,
+      eventType.schedule?.timeZone,
+      userId
+    );
   }
 
   let bookingSeat: BookingSeat = null;

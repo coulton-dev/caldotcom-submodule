@@ -112,6 +112,7 @@ export const meHandler = async ({ ctx, input }: MeOptions) => {
     username: user.profile?.username ?? user.username ?? null,
     profile: user.profile ?? null,
     profiles: allUserEnrichedProfiles,
+    bookingLimits: user.bookingLimits,
     secondaryEmails,
     ...(passwordAdded ? { passwordAdded } : {}),
   };
