@@ -51,6 +51,7 @@ import {
   scheduleWorkflowReminders,
 } from "@calcom/features/ee/workflows/lib/reminders/reminderScheduler";
 import { getFullName } from "@calcom/features/form-builder/utils";
+import { sendNotification } from "@calcom/features/notifications/sendNotification";
 import type { GetSubscriberOptions } from "@calcom/features/webhooks/lib/getWebhooks";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { cancelScheduledJobs, scheduleTrigger } from "@calcom/features/webhooks/lib/scheduleTrigger";
@@ -742,6 +743,34 @@ async function createBooking({
         id: true,
       },
     });
+  }
+
+  if (!isConfirmedByDefault) {
+    // If the booking is pending, we need to send notification
+    const notification = {
+      title: "You have a new event request",
+      options: {
+        body: evt.title,
+        data: {
+          targetURL: "https://app.cal.com/bookings/unconfirmed",
+        },
+      },
+    };
+
+    const subscriptions = await prisma.notificationsSubscriptions.findMany({
+      where: {
+        userId: organizerUser.id,
+      },
+      select: {
+        subscription: true,
+      },
+    });
+
+    await Promise.all(
+      subscriptions.map((subscription) => {
+        return sendNotification(JSON.parse(subscription.subscription), JSON.stringify(notification));
+      })
+    );
   }
 
   return prisma.booking.create(createBookingObj);
