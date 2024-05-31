@@ -218,6 +218,7 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
       assignAllTeamMembers: true,
       parentId: true,
       useEventTypeDestinationCalendarEmail: true,
+      differentRoundRobinRecurringHosts: true,
       owner: {
         select: {
           hideBranding: true,
@@ -717,7 +718,7 @@ async function createBooking({
   const createBookingObj = {
     include: {
       user: {
-        select: { email: true, name: true, timeZone: true, username: true },
+        select: { email: true, name: true, timeZone: true, username: true, timeFormat: true, locale: true },
       },
       attendees: true,
       payment: true,
@@ -885,6 +886,8 @@ export const findBookingQuery = async (bookingId: number) => {
           email: true,
           timeZone: true,
           username: true,
+          locale: true,
+          timeFormat: true,
         },
       },
       eventType: {
@@ -1317,7 +1320,11 @@ async function handler(
       }
     }
 
-    if (!req.body.allRecurringDates || req.body.isFirstRecurringSlot) {
+    if (
+      !req.body.allRecurringDates ||
+      req.body.isFirstRecurringSlot ||
+      eventType.differentRoundRobinRecurringHosts
+    ) {
       const availableUsers = await ensureAvailableUsers(
         eventTypeWithUsers,
         {
@@ -1351,7 +1358,11 @@ async function handler(
         if (!newLuckyUser) {
           break; // prevent infinite loop
         }
-        if (req.body.isFirstRecurringSlot && eventType.schedulingType === SchedulingType.ROUND_ROBIN) {
+        if (
+          req.body.isFirstRecurringSlot &&
+          eventType.schedulingType === SchedulingType.ROUND_ROBIN &&
+          !eventType.differentRoundRobinRecurringHosts
+        ) {
           // for recurring round robin events check if lucky user is available for next slots
           try {
             for (
@@ -1613,6 +1624,7 @@ async function handler(
     seatsPerTimeSlot: eventType.seatsPerTimeSlot,
     seatsShowAvailabilityCount: eventType.seatsPerTimeSlot ? eventType.seatsShowAvailabilityCount : true,
     schedulingType: eventType.schedulingType,
+    differentRoundRobinRecurringHosts: eventType.differentRoundRobinRecurringHosts,
     iCalUID,
     iCalSequence,
     platformClientId,
@@ -1671,6 +1683,7 @@ async function handler(
     teamId,
   };
 
+  let isHostConfirmationEmailsDisabled = false;
   // For seats, if the booking already exists then we want to add the new attendee to the existing booking
   if (eventType.seatsPerTimeSlot) {
     const newBooking = await handleSeats({
@@ -1717,6 +1730,9 @@ async function handler(
       return {
         ...bookingResponse,
         ...luckyUserResponse,
+        differentRoundRobinRecurringHosts: evt.differentRoundRobinRecurringHosts,
+        hostEmailDisabled: isHostConfirmationEmailsDisabled,
+        type: eventType.slug,
       };
     }
   }
@@ -2173,7 +2189,6 @@ async function handler(
         }
       }
       if (noEmail !== true) {
-        let isHostConfirmationEmailsDisabled = false;
         let isAttendeeConfirmationEmailDisabled = false;
 
         const workflows = eventType.workflows.map((workflow) => workflow.workflow);
@@ -2208,7 +2223,7 @@ async function handler(
             customInputs,
           },
           eventNameObject,
-          isHostConfirmationEmailsDisabled,
+          isHostConfirmationEmailsDisabled || eventType.differentRoundRobinRecurringHosts,
           isAttendeeConfirmationEmailDisabled
         );
       }
@@ -2343,6 +2358,9 @@ async function handler(
       message: "Payment required",
       paymentUid: payment?.uid,
       paymentId: payment?.id,
+      differentRoundRobinRecurringHosts: evt.differentRoundRobinRecurringHosts,
+      hostEmailDisabled: isHostConfirmationEmailsDisabled,
+      type: eventType.slug,
     };
   }
 
@@ -2487,6 +2505,9 @@ async function handler(
     ...luckyUserResponse,
     references: referencesToCreate,
     seatReferenceUid: evt.attendeeSeatId,
+    differentRoundRobinRecurringHosts: evt.differentRoundRobinRecurringHosts,
+    hostEmailDisabled: isHostConfirmationEmailsDisabled,
+    type: eventType.slug,
   };
 }
 

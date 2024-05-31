@@ -123,6 +123,7 @@ export const buildEventType = (eventType?: Partial<EventType>): EventType => {
     bookingFields: [],
     parentId: null,
     profileId: null,
+    differentRoundRobinRecurringHosts: false,
     secondaryEmailId: null,
     ...eventType,
   };
