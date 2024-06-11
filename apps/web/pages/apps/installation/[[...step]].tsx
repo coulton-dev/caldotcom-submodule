@@ -72,7 +72,6 @@ const STEPS = [
   AppOnboardingSteps.EVENT_TYPES_STEP,
   AppOnboardingSteps.CONFIGURE_STEP,
 ] as const;
-const MAX_NUMBER_OF_STEPS = STEPS.length;
 
 type StepType = (typeof STEPS)[number];
 
@@ -96,6 +95,7 @@ type OnboardingPageProps = {
   showEventTypesStep: boolean;
   isConferencing: boolean;
   isOrg: boolean;
+  installableOnTeams: boolean;
 };
 
 type TUpdateObject = {
@@ -116,6 +116,7 @@ const OnboardingPage = ({
   showEventTypesStep,
   isConferencing,
   isOrg,
+  installableOnTeams,
 }: OnboardingPageProps) => {
   const { t } = useLocale();
   const pathname = usePathname();
@@ -130,12 +131,12 @@ const OnboardingPage = ({
     [AppOnboardingSteps.EVENT_TYPES_STEP]: {
       getTitle: () => `${t("select_event_types_header")}`,
       getDescription: (appName) => `${t("select_event_types_description", { appName })}`,
-      stepNumber: 2,
+      stepNumber: installableOnTeams ? 1 : 2,
     },
     [AppOnboardingSteps.CONFIGURE_STEP]: {
       getTitle: (appName) => `${t("configure_app_header", { appName })}`,
       getDescription: () => `${t("configure_app_description")}`,
-      stepNumber: 3,
+      stepNumber: installableOnTeams ? 2 : 3,
     },
   } as const;
   const [configureStep, setConfigureStep] = useState(false);
@@ -147,6 +148,13 @@ const OnboardingPage = ({
     return step;
   }, [step, configureStep]);
   const stepObj = STEPS_MAP[currentStep];
+
+  const maxSteps = useMemo(() => {
+    if (!showEventTypesStep) {
+      return 1;
+    }
+    return installableOnTeams ? STEPS.length : STEPS.length - 1;
+  }, [showEventTypesStep, installableOnTeams]);
 
   const utils = trpc.useContext();
 
@@ -301,7 +309,7 @@ const OnboardingPage = ({
               <StepHeader
                 title={stepObj.getTitle(appMetadata.name)}
                 subtitle={stepObj.getDescription(appMetadata.name)}>
-                <Steps maxSteps={MAX_NUMBER_OF_STEPS} currentStep={stepObj.stepNumber} disableNavigation />
+                <Steps maxSteps={maxSteps} currentStep={stepObj.stepNumber} disableNavigation />
               </StepHeader>
               {currentStep === AppOnboardingSteps.ACCOUNTS_STEP && (
                 <AccountsStepCard
@@ -309,7 +317,7 @@ const OnboardingPage = ({
                   personalAccount={personalAccount}
                   onSelect={handleSelectAccount}
                   loading={mutation.isPending}
-                  isConferencing={isConferencing}
+                  installableOnTeams={installableOnTeams}
                 />
               )}
               {currentStep === AppOnboardingSteps.EVENT_TYPES_STEP &&
@@ -362,7 +370,7 @@ const getUser = async (userId: number) => {
     },
     select: {
       id: true,
-      avatar: true,
+      avatarUrl: true,
       name: true,
       username: true,
       teams: {
@@ -384,8 +392,14 @@ const getUser = async (userId: number) => {
             select: {
               id: true,
               name: true,
-              logo: true,
+              logoUrl: true,
               isOrganization: true,
+              parent: {
+                select: {
+                  logoUrl: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -396,7 +410,17 @@ const getUser = async (userId: number) => {
   if (!user) {
     throw new Error(ERROR_MESSAGES.userNotFound);
   }
-  return user;
+
+  const teams = user.teams.map(({ team }) => ({
+    ...team,
+    logoUrl: team.parent
+      ? getPlaceholderAvatar(team.parent.logoUrl, team.parent.name)
+      : getPlaceholderAvatar(team.logoUrl, team.name),
+  }));
+  return {
+    ...user,
+    teams,
+  };
 };
 
 const getAppBySlug = async (appSlug: string) => {
@@ -540,18 +564,16 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     const locale = await getLocale(context.req);
     const app = await getAppBySlug(parsedAppSlug);
     const appMetadata = appStoreMetadata[app.dirName as keyof typeof appStoreMetadata];
-    const exteandsEventType = appMetadata?.extendsFeature === "EventType";
+    const extendsEventType = appMetadata?.extendsFeature === "EventType";
 
     const isConferencing = isConferencingApp(appMetadata.categories);
-    const showEventTypesStep = exteandsEventType || isConferencing;
+    const showEventTypesStep = extendsEventType || isConferencing;
 
     if (!session?.user?.id) throw new Error(ERROR_MESSAGES.userNotAuthed);
 
     const user = await getUser(session.user.id);
 
-    let userAcceptedTeams = user.teams.map((team) => ({
-      ...team.team,
-    }));
+    let userAcceptedTeams = user.teams;
     const hasTeams = Boolean(userAcceptedTeams.length);
 
     if (parsedTeamIdParam) {
@@ -568,8 +590,9 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
           select: {
             id: true,
             name: true,
-            logo: true,
+            logoUrl: true,
             isOrganization: true,
+            parent: true,
           },
         });
         userAcceptedTeams = team;
@@ -656,7 +679,7 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     const personalAccount = {
       id: user.id,
       name: user.name,
-      avatar: user.avatar,
+      avatarUrl: user.avatarUrl,
       alreadyInstalled: appInstalls.some((install) => !Boolean(install.teamId) && install.userId === user.id),
     };
 
@@ -692,6 +715,8 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
         credentialId,
         isConferencing,
         isOrg,
+        // conferencing apps dont support team install
+        installableOnTeams: !isConferencing,
       } as OnboardingPageProps,
     };
   } catch (err) {

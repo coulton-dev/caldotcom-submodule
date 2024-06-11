@@ -2,27 +2,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { TEventType, TEventTypeGroup, TEventTypesForm } from "@pages/apps/installation/[[...step]]";
 import { X } from "lucide-react";
 import type { Dispatch, SetStateAction, FC } from "react";
-import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { UseFormGetValues, UseFormSetValue, Control, FormState } from "react-hook-form";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { EventTypeAppSettings } from "@calcom/app-store/_components/EventTypeAppSettingsInterface";
-import { type EventTypeAppsList } from "@calcom/app-store/utils";
 import type { LocationObject } from "@calcom/core/location";
-import type { LocationFormValues } from "@calcom/features/eventtypes/lib/types";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import type { AppCategories } from "@calcom/prisma/enums";
 import type { EventTypeMetaDataSchema, eventTypeBookingFields } from "@calcom/prisma/zod-utils";
-import { Button, Form, Skeleton, Label, Avatar } from "@calcom/ui";
+import { Button, Form, Avatar } from "@calcom/ui";
 
-import useAppsData from "@lib/hooks/useAppsData";
-
-import Locations from "@components/eventtype/Locations";
-import type { TEventTypeLocation } from "@components/eventtype/Locations";
-import type { SingleValueLocationOption } from "@components/ui/form/LocationSelect";
+import EventTypeAppSettingsWrapper from "@components/apps/installation/EventTypeAppSettingsWrapper";
+import EventTypeConferencingAppSettings from "@components/apps/installation/EventTypeConferencingAppSettings";
 
 import { locationsResolver } from "~/event-types/views/event-types-single-view";
 
@@ -31,9 +24,10 @@ export type TFormType = {
   metadata: z.infer<typeof EventTypeMetaDataSchema>;
   locations: LocationObject[];
   bookingFields: z.infer<typeof eventTypeBookingFields>;
+  seatsPerTimeSlot: number | null;
 };
 
-type ConfigureStepCardProps = {
+export type ConfigureStepCardProps = {
   slug: string;
   userName: string;
   categories: AppCategories[];
@@ -63,80 +57,7 @@ type EventTypeAppSettingsFormProps = Pick<
   }) => void;
 };
 
-type EventTypeAppSettingsWrapperProps = Pick<
-  ConfigureStepCardProps,
-  "slug" | "userName" | "categories" | "credentialId"
-> & {
-  eventType: TEventType;
-};
-
 type TUpdatedEventTypesStatus = { id: number; updated: boolean }[][];
-
-const EventTypeAppSettingsWrapper: FC<EventTypeAppSettingsWrapperProps> = ({
-  slug,
-  eventType,
-  categories,
-  credentialId,
-}) => {
-  const { getAppDataGetter, getAppDataSetter } = useAppsData();
-
-  useEffect(() => {
-    const appDataSetter = getAppDataSetter(slug as EventTypeAppsList, categories, credentialId);
-    appDataSetter("enabled", true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <EventTypeAppSettings
-      slug={slug}
-      eventType={eventType}
-      getAppData={getAppDataGetter(slug as EventTypeAppsList)}
-      setAppData={getAppDataSetter(slug as EventTypeAppsList, categories, credentialId)}
-    />
-  );
-};
-
-const EventTypeConferencingAppSettings = ({ eventType, slug }: { eventType: TEventType; slug: string }) => {
-  const { t } = useLocale();
-  const formMethods = useFormContext<TFormType>();
-
-  const prefillLocation = useMemo(() => {
-    let res: SingleValueLocationOption | undefined = undefined;
-    for (const item of eventType?.locationOptions || []) {
-      for (const option of item.options) {
-        if (option.slug === slug) {
-          res = {
-            ...option,
-          };
-        }
-      }
-      return res;
-    }
-  }, [slug, eventType?.locationOptions]);
-
-  return (
-    <div className="mt-2">
-      <Skeleton as={Label} loadingClassName="w-16" htmlFor="locations">
-        {t("location")}
-      </Skeleton>
-      <Locations
-        showAppStoreLink={false}
-        isChildrenManagedEventType={false}
-        isManagedEventType={false}
-        disableLocationProp={false}
-        eventType={eventType as TEventTypeLocation}
-        destinationCalendar={eventType.destinationCalendar}
-        locationOptions={eventType.locationOptions || []}
-        prefillLocation={prefillLocation}
-        team={null}
-        getValues={formMethods.getValues as unknown as UseFormGetValues<LocationFormValues>}
-        setValue={formMethods.setValue as unknown as UseFormSetValue<LocationFormValues>}
-        control={formMethods.control as unknown as Control<LocationFormValues>}
-        formState={formMethods.formState as unknown as FormState<LocationFormValues>}
-      />
-    </div>
-  );
-};
 
 const EventTypeAppSettingsForm = forwardRef<HTMLButtonElement, EventTypeAppSettingsFormProps>(
   function EventTypeAppSettingsForm(props, ref) {
@@ -149,6 +70,7 @@ const EventTypeAppSettingsForm = forwardRef<HTMLButtonElement, EventTypeAppSetti
         metadata: eventType?.metadata,
         locations: eventType?.locations,
         bookingFields: eventType?.bookingFields,
+        seatsPerTimeSlot: eventType?.seatsPerTimeSlot,
       },
       resolver: zodResolver(
         z.object({

@@ -11,6 +11,7 @@ import { AppOnboardingSteps } from "@calcom/lib/apps/appOnboardingSteps";
 import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
 import classNames from "@calcom/lib/classNames";
 import { APP_NAME, COMPANY_NAME, SUPPORT_MAIL_ADDRESS, WEBAPP_URL } from "@calcom/lib/constants";
+import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
 import type { App as AppType } from "@calcom/types/App";
@@ -75,11 +76,16 @@ export const AppPage = ({
 }: AppPageProps) => {
   const { t, i18n } = useLocale();
   const router = useRouter();
+  const searchParams = useCompatSearchParams();
+
   const hasDescriptionItems = descriptionItems && descriptionItems.length > 0;
 
   const mutation = useAddAppMutation(null);
 
+  const [isLoading, setIsLoading] = useState<boolean>(mutation.isPending);
+
   const handleAppInstall = () => {
+    setIsLoading(true);
     if (isConferencing(categories)) {
       mutation.mutate(
         {
@@ -108,6 +114,7 @@ export const AppPage = ({
           },
           onError: (error) => {
             if (error instanceof Error) showToast(error.message || t("app_could_not_be_installed"), "error");
+            setIsLoading(false);
           },
         }
       );
@@ -160,6 +167,11 @@ export const AppPage = ({
   // variant not other allows, an app to be shown in calendar category without requiring an actual calendar connection e.g. vimcal
   // Such apps, can only be installed once.
   const allowedMultipleInstalls = categories.indexOf("calendar") > -1 && variant !== "other";
+  useEffect(() => {
+    if (searchParams?.get("defaultInstall") === "true") {
+      mutation.mutate({ type, variant, slug, defaultInstall: true });
+    }
+  }, []);
 
   return (
     <div className="relative flex-1 flex-col items-start justify-start px-4 md:flex md:px-8 lg:flex-row lg:px-0">
@@ -254,7 +266,7 @@ export const AppPage = ({
                         onClick: () => {
                           handleAppInstall();
                         },
-                        loading: mutation.isPending,
+                        loading: isLoading,
                       };
                     }
                     return <InstallAppButtonChild multiInstall paid={paid} {...props} />;
@@ -283,7 +295,7 @@ export const AppPage = ({
                     onClick: () => {
                       handleAppInstall();
                     },
-                    loading: mutation.isPending,
+                    loading: isLoading,
                   };
                 }
                 return (

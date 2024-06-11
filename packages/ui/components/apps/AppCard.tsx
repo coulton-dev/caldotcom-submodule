@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import useAddAppMutation from "@calcom/app-store/_utils/useAddAppMutation";
 import { InstallAppButton } from "@calcom/app-store/components";
 import { doesAppSupportTeamInstall, isConferencing } from "@calcom/app-store/utils";
-import type { UserAdminTeams } from "@calcom/features/ee/teams/lib/getUserAdminTeams";
 import { AppOnboardingSteps } from "@calcom/lib/apps/appOnboardingSteps";
 import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
 import classNames from "@calcom/lib/classNames";
 import { WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import type { UserAdminTeams } from "@calcom/lib/server/repository/user";
 import type { AppFrontendPayload as App } from "@calcom/types/App";
 import type { CredentialFrontendPayload as Credential } from "@calcom/types/Credential";
 import type { ButtonProps } from "@calcom/ui";
@@ -40,12 +40,14 @@ export function AppCard({ app, credentials, searchText, userAdminTeams }: AppCar
   const mutation = useAddAppMutation(null);
 
   const [searchTextIndex, setSearchTextIndex] = useState<number | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState<boolean>(mutation.isPending);
 
   useEffect(() => {
     setSearchTextIndex(searchText ? app.name.toLowerCase().indexOf(searchText.toLowerCase()) : undefined);
   }, [app.name, searchText]);
 
   const handleAppInstall = () => {
+    setIsLoading(true);
     if (isConferencing(app.categories)) {
       mutation.mutate(
         {
@@ -74,6 +76,7 @@ export function AppCard({ app, credentials, searchText, userAdminTeams }: AppCar
           },
           onError: (error) => {
             if (error instanceof Error) showToast(error.message || t("app_could_not_be_installed"), "error");
+            setIsLoading(false);
           },
         }
       );
@@ -154,7 +157,7 @@ export function AppCard({ app, credentials, searchText, userAdminTeams }: AppCar
                       onClick: () => {
                         handleAppInstall();
                       },
-                      loading: mutation.isPending,
+                      loading: isLoading,
                     };
                   }
                   return <InstallAppButtonChild paid={app.paid} {...props} />;
@@ -176,7 +179,7 @@ export function AppCard({ app, credentials, searchText, userAdminTeams }: AppCar
                       onClick: () => {
                         handleAppInstall();
                       },
-                      loading: mutation.isPending,
+                      loading: isLoading,
                     };
                   }
                   return <InstallAppButtonChild paid={app.paid} {...props} />;

@@ -51,7 +51,7 @@ export function createAppsFixture(page: Page) {
       await page.waitForURL(`apps/installation/event-types?slug=${app}`);
       await page.click('[data-testid="set-up-later"]');
     },
-    vefifyConferencingtApp: async (app: TApp, index: number) => {
+    verifyConferencingApp: async (app: TApp, index: number) => {
       await page.goto("/event-types");
       await gotoFirstEventType(page);
       if (index == 0) {
@@ -70,10 +70,10 @@ export function createAppsFixture(page: Page) {
       await selectFirstAvailableTimeSlotNextMonth(page);
 
       if (index > 0) {
-        if (app.organizerInputPlaceholder) {
-          await page.getByLabel(app.organizerInputPlaceholder).click();
-        } else {
+        if (app.label) {
           await page.getByLabel(app.label).click();
+        } else if (app.organizerInputPlaceholder) {
+          await page.getByLabel(app.organizerInputPlaceholder).click();
         }
       }
       await bookTimeSlot(page);
