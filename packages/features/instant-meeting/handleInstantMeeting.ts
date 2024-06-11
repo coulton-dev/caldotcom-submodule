@@ -88,6 +88,15 @@ const handleInstantMeetingWebhookTrigger = async (args: {
   }
 };
 
+export type HandleInstantMeetingResponse = {
+  message: string;
+  meetingTokenId: number;
+  bookingId: number;
+  bookingUid: string;
+  expires: Date;
+  userId: number | null;
+};
+
 async function handler(req: NextApiRequest) {
   let eventType = await getEventTypesFromDB(req.body.eventTypeId);
   eventType = {
@@ -235,8 +244,10 @@ async function handler(req: NextApiRequest) {
     message: "Success",
     meetingTokenId: instantMeetingToken.id,
     bookingId: newBooking.id,
+    bookingUid: newBooking.uid,
     expires: instantMeetingToken.expires,
-  };
+    userId: newBooking.userId,
+  } satisfies HandleInstantMeetingResponse;
 }
 
 export default handler;

@@ -20,7 +20,7 @@ import { UserRepositoryFixture } from "test/fixtures/repository/users.repository
 import { withAccessTokenAuth } from "test/utils/withAccessTokenAuth";
 
 import { SUCCESS_STATUS, ERROR_STATUS } from "@calcom/platform-constants";
-import { handleNewBooking } from "@calcom/platform-libraries-0.0.2";
+import { handleNewBooking } from "@calcom/platform-libraries-0.0.3";
 import { ApiSuccessResponse, ApiResponse } from "@calcom/platform-types";
 
 describe("Bookings Endpoints", () => {
@@ -140,7 +140,6 @@ describe("Bookings Endpoints", () => {
       return request(app.getHttpServer())
         .get("/v2/bookings?filters[status]=upcoming")
         .then((response) => {
-          console.log("asap responseBody", JSON.stringify(response.body, null, 2));
           const responseBody: GetBookingsOutput = response.body;
           const fetchedBooking = responseBody.data.bookings[0];
 

@@ -38,14 +38,14 @@ import {
   getBookingInfo,
   handleCancelBooking,
   getBookingForReschedule,
-} from "@calcom/platform-libraries-0.0.2";
+} from "@calcom/platform-libraries-0.0.3";
 import {
   handleNewBooking,
   BookingResponse,
   HttpError,
   handleNewRecurringBooking,
   handleInstantMeeting,
-} from "@calcom/platform-libraries-0.0.2";
+} from "@calcom/platform-libraries-0.0.3";
 import { GetBookingsInput, CancelBookingInput, Status } from "@calcom/platform-types";
 import { ApiResponse } from "@calcom/platform-types";
 import { PrismaClient } from "@calcom/prisma";
@@ -149,17 +149,21 @@ export class BookingsController {
     @Req() req: BookingRequest,
     @Body() body: CreateBookingInput,
     @Headers(X_CAL_CLIENT_ID) clientId?: string
-  ): Promise<ApiResponse<unknown>> {
+  ): Promise<ApiResponse<Partial<BookingResponse>>> {
     const oAuthClientId = clientId?.toString();
-
     const { orgSlug, locationUrl } = body;
     req.headers["x-cal-force-slug"] = orgSlug;
     try {
       const booking = await handleNewBooking(
         await this.createNextApiBookingRequest(req, oAuthClientId, locationUrl)
       );
-
-      void (await this.billingService.increaseUsageByClientId(oAuthClientId!));
+      if (booking.userId && booking.uid && booking.startTime) {
+        void (await this.billingService.increaseUsageByUserId(booking.userId, {
+          uid: booking.uid,
+          startTime: booking.startTime,
+          fromReschedule: booking.fromReschedule,
+        }));
+      }
       return {
         status: SUCCESS_STATUS,
         data: booking,
@@ -176,14 +180,22 @@ export class BookingsController {
     @Param("bookingId") bookingId: string,
     @Body() _: CancelBookingInput,
     @Headers(X_CAL_CLIENT_ID) clientId?: string
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<{ bookingId: number; bookingUid: string; onlyRemovedAttendee: boolean }>> {
     const oAuthClientId = clientId?.toString();
     if (bookingId) {
       try {
         req.body.id = parseInt(bookingId);
-        await handleCancelBooking(await this.createNextApiBookingRequest(req, oAuthClientId));
+        const res = await handleCancelBooking(await this.createNextApiBookingRequest(req, oAuthClientId));
+        if (!res.onlyRemovedAttendee) {
+          void (await this.billingService.cancelUsageByBookingUid(res.bookingUid));
+        }
         return {
           status: SUCCESS_STATUS,
+          data: {
+            bookingId: res.bookingId,
+            bookingUid: res.bookingUid,
+            onlyRemovedAttendee: res.onlyRemovedAttendee,
+          },
         };
       } catch (err) {
         this.handleBookingErrors(err);
@@ -206,7 +218,14 @@ export class BookingsController {
         await this.createNextApiBookingRequest(req, oAuthClientId)
       );
 
-      void (await this.billingService.increaseUsageByClientId(oAuthClientId!));
+      createdBookings.forEach(async (booking) => {
+        if (booking.userId && booking.uid && booking.startTime) {
+          void (await this.billingService.increaseUsageByUserId(booking.userId, {
+            uid: booking.uid,
+            startTime: booking.startTime,
+          }));
+        }
+      });
 
       return {
         status: SUCCESS_STATUS,
@@ -231,7 +250,15 @@ export class BookingsController {
         await this.createNextApiBookingRequest(req, oAuthClientId)
       );
 
-      void (await this.billingService.increaseUsageByClientId(oAuthClientId!));
+      if (instantMeeting.userId && instantMeeting.bookingUid) {
+        const now = new Date();
+        // add a 10 secondes delay to the usage incrementation
+        now.setSeconds(now.getSeconds() + 10);
+        void (await this.billingService.increaseUsageByUserId(instantMeeting.userId, {
+          uid: instantMeeting.bookingUid,
+          startTime: now,
+        }));
+      }
 
       return {
         status: SUCCESS_STATUS,
