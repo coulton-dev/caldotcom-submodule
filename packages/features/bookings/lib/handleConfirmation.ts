@@ -59,8 +59,9 @@ export async function handleConfirmation(args: {
     userId: number | null;
   };
   paid?: boolean;
+  actorUserId?: number | null;
 }) {
-  const { user, evt, recurringEventId, prisma, bookingId, booking, paid } = args;
+  const { user, evt, recurringEventId, prisma, bookingId, booking, paid, actorUserId } = args;
   const eventManager = new EventManager(user);
   const scheduleResult = await eventManager.create(evt);
   const results = scheduleResult.results;
@@ -169,6 +170,7 @@ export async function handleConfirmation(args: {
             ...(typeof recurringBooking.metadata === "object" ? recurringBooking.metadata : {}),
             videoCallUrl: meetingUrl,
           },
+          actorUserId: actorUserId ?? null,
         },
         select: {
           eventType: {
@@ -223,6 +225,7 @@ export async function handleConfirmation(args: {
           ...(typeof booking.metadata === "object" ? booking.metadata : {}),
           videoCallUrl: meetingUrl,
         },
+        actorUserId: actorUserId ?? null,
       },
       select: {
         eventType: {

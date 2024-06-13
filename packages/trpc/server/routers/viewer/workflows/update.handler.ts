@@ -837,6 +837,7 @@ export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
     await removeSmsReminderFieldForBooking({
       workflowId: id,
       eventTypeId: removedEventType,
+      actorUserId: ctx.user.id ?? null,
     });
   }
 
@@ -852,7 +853,11 @@ export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
         eventTypeId,
       });
     } else {
-      await removeSmsReminderFieldForBooking({ workflowId: id, eventTypeId });
+      await removeSmsReminderFieldForBooking({
+        workflowId: id,
+        eventTypeId,
+        actorUserId: ctx.user.id ?? null,
+      });
     }
   }
 
