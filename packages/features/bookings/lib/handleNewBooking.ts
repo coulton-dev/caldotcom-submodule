@@ -183,6 +183,11 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
         },
       },
       slug: true,
+      profile: {
+        select: {
+          organizationId: true,
+        },
+      },
       team: {
         select: {
           id: true,
@@ -275,7 +280,7 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
     },
   });
 
-  const isTeamEvent = !!eventType?.team;
+  const isOrgTeamEvent = !!eventType?.team && !!eventType?.profile?.organizationId;
 
   return {
     ...eventType,
@@ -283,7 +288,7 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
     recurringEvent: parseRecurringEvent(eventType?.recurringEvent),
     customInputs: customInputSchema.array().parse(eventType?.customInputs || []),
     locations: (eventType?.locations ?? []) as LocationObject[],
-    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isTeamEvent } || {}),
+    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isOrgTeamEvent } || {}),
     isDynamic: false,
   };
 };
@@ -1011,11 +1016,11 @@ async function handler(
       ? getDefaultEvent(req.body.eventTypeSlug)
       : await getEventTypesFromDB(req.body.eventTypeId);
 
-  const isTeamEvent = !!eventType?.team;
+  const isOrgTeamEvent = !!eventType?.team && !!eventType?.profile?.organizationId;
 
   eventType = {
     ...eventType,
-    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isTeamEvent }),
+    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isOrgTeamEvent }),
   };
 
   const bookingDataSchema = bookingDataSchemaGetter({

@@ -127,6 +127,11 @@ export const getEventTypeById = async ({
           teamId: true,
         },
       },
+      profile: {
+        select: {
+          organizationId: true,
+        },
+      },
       teamId: true,
       team: {
         select: {
@@ -391,12 +396,12 @@ export const getEventTypeById = async ({
     });
   }
 
-  const isTeamEvent = !!eventType?.teamId;
+  const isOrgTeamEvent = !!eventType?.teamId && !!eventType?.profile?.organizationId;
   const eventTypeObject = Object.assign({}, eventType, {
     users: eventTypeUsers,
     periodStartDate: eventType.periodStartDate?.toString() ?? null,
     periodEndDate: eventType.periodEndDate?.toString() ?? null,
-    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isTeamEvent }),
+    bookingFields: getBookingFieldsWithSystemFields({ ...eventType, isOrgTeamEvent }),
   });
 
   const isOrgEventType = !!eventTypeObject.team?.parentId;

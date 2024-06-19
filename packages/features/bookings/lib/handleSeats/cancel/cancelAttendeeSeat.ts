@@ -1,6 +1,6 @@
 import { getCalendar } from "@calcom/app-store/_utils/getCalendar";
 import { updateMeeting } from "@calcom/core/videoClient";
-import { sendCancelledSeatEmails } from "@calcom/emails";
+import { sendCancelledSeatEmailsAndSMS } from "@calcom/emails";
 import { deleteScheduledEmailReminder } from "@calcom/features/ee/workflows/lib/reminders/emailReminderManager";
 import { deleteScheduledSMSReminder } from "@calcom/features/ee/workflows/lib/reminders/smsReminderManager";
 import { deleteScheduledWhatsappReminder } from "@calcom/features/ee/workflows/lib/reminders/whatsappReminderManager";
@@ -107,7 +107,7 @@ async function cancelAttendeeSeat(
 
     const tAttendees = await getTranslation(attendee.locale ?? "en", "common");
 
-    await sendCancelledSeatEmails(evt, {
+    await sendCancelledSeatEmailsAndSMS(evt, {
       ...attendee,
       language: { translate: tAttendees, locale: attendee.locale ?? "en" },
     });
