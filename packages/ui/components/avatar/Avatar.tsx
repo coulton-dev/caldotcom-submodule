@@ -37,7 +37,7 @@ const sizesPropsBySize = {
 
 export function Avatar(props: AvatarProps) {
   const { imageSrc, size = "md", alt, title, href, indicator, isBannerAvatar } = props;
-  const rootClass = classNames("aspect-square rounded-full", sizesPropsBySize[size]);
+  let rootClass = classNames("aspect-square rounded-full", sizesPropsBySize[size]);
   let avatar = (
     <AvatarPrimitive.Root
       data-testid={props?.["data-testid"]}
@@ -67,7 +67,7 @@ export function Avatar(props: AvatarProps) {
   );
 
   if (isBannerAvatar) {
-    const rootClass = classNames("min-h-[200px] object-cover");
+    rootClass = classNames("min-h-[200px] object-cover");
     avatar = (
       <AvatarPrimitive.Root
         data-testid={props?.["data-testid"]}
@@ -78,18 +78,6 @@ export function Avatar(props: AvatarProps) {
         )}>
         <>
           <AvatarPrimitive.Image src={imageSrc ?? undefined} alt={alt} className={classNames(rootClass)} />
-          <AvatarPrimitive.Fallback
-            delayMs={600}
-            asChild={props.asChild}
-            className={classNames("aspect-square", rootClass)}>
-            <>
-              {props.fallback ? (
-                props.fallback
-              ) : (
-                <img src={AVATAR_FALLBACK} alt={alt} className={classNames(rootClass)} />
-              )}
-            </>
-          </AvatarPrimitive.Fallback>
           {indicator}
         </>
       </AvatarPrimitive.Root>
