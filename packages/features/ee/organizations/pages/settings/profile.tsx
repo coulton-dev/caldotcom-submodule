@@ -248,7 +248,7 @@ const OrgProfileForm = ({ defaultValues }: { defaultValues: FormValues }) => {
           />
         </div>
 
-        <div className="mt-2 flex items-center">
+        <div className="mt-2">
           <Controller
             control={form.control}
             name="banner"
@@ -262,6 +262,7 @@ const OrgProfileForm = ({ defaultValues }: { defaultValues: FormValues }) => {
                     alt={`${defaultValues.name} Banner` || ""}
                     imageSrc={value}
                     size="lg"
+                    isBannerAvatar={true}
                   />
                   <div className="ms-4">
                     <div className="flex gap-2">

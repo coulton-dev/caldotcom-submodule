@@ -21,6 +21,7 @@ export type AvatarProps = {
   asChild?: boolean; // Added to ignore the outer span on the fallback component - messes up styling
   indicator?: React.ReactNode;
   "data-testid"?: string;
+  isBannerAvatar?: boolean;
 };
 
 const sizesPropsBySize = {
@@ -35,8 +36,8 @@ const sizesPropsBySize = {
 } as const;
 
 export function Avatar(props: AvatarProps) {
-  const { imageSrc, size = "md", alt, title, href, indicator } = props;
-  const rootClass = classNames("aspect-square rounded-full", sizesPropsBySize[size]);
+  const { imageSrc, size = "md", alt, title, href, indicator, isBannerAvatar } = props;
+  let rootClass = classNames("aspect-square rounded-full", sizesPropsBySize[size]);
   let avatar = (
     <AvatarPrimitive.Root
       data-testid={props?.["data-testid"]}
@@ -64,6 +65,24 @@ export function Avatar(props: AvatarProps) {
       </>
     </AvatarPrimitive.Root>
   );
+
+  if (isBannerAvatar) {
+    rootClass = classNames("min-h-[200px] object-cover");
+    avatar = (
+      <AvatarPrimitive.Root
+        data-testid={props?.["data-testid"]}
+        className={classNames(
+          "bg-emphasis",
+          indicator ? "overflow-visible" : "overflow-hidden",
+          props.className
+        )}>
+        <>
+          <AvatarPrimitive.Image src={imageSrc ?? undefined} alt={alt} className={classNames(rootClass)} />
+          {indicator}
+        </>
+      </AvatarPrimitive.Root>
+    );
+  }
 
   if (href) {
     avatar = (
