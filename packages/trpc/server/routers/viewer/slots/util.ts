@@ -200,6 +200,22 @@ export async function getEventType(
         },
       },
       hosts: {
+        where: {
+          user: {
+            teams: {
+              some: {
+                accepted: true,
+                team: {
+                  eventTypes: {
+                    some: {
+                      id: eventTypeId,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         select: {
           isFixed: true,
           user: {

@@ -68,6 +68,7 @@ export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
   const eventType = await ctx.prisma.eventType.findUniqueOrThrow({
     where: { id },
     select: {
+      schedulingType: true,
       title: true,
       aiPhoneCallConfig: {
         select: {
@@ -225,12 +226,10 @@ export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
   }
 
   if (teamId && hosts) {
-    // check if all hosts can be assigned (memberships that have accepted invite)
     const memberships =
       (await ctx.prisma.membership.findMany({
         where: {
           teamId,
-          accepted: true,
         },
       })) || [];
     const teamMemberIds = memberships.map((membership) => membership.userId);

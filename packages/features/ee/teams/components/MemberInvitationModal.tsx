@@ -1,7 +1,7 @@
 import { useSession } from "next-auth/react";
 import { Trans } from "next-i18next";
 import type { FormEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import TeamInviteFromOrg from "@calcom/ee/organizations/components/TeamInviteFromOrg";
@@ -33,6 +33,7 @@ import { GoogleWorkspaceInviteButton } from "./GoogleWorkspaceInviteButton";
 type MemberInvitationModalProps = {
   isOpen: boolean;
   justEmailInvites?: boolean;
+  inviteEmail?: string;
   onExit: () => void;
   orgMembers?: RouterOutputs["viewer"]["organizations"]["getMembers"];
   onSubmit: (values: NewMemberForm, resetFields: () => void) => void;
@@ -84,11 +85,17 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
     props?.orgMembers &&
     props.orgMembers?.length > 0 &&
     currentOrg?.isPrivate &&
-    isOrgAdminOrOwner
+    isOrgAdminOrOwner &&
+    !props.inviteEmail
   );
+  const newMemberFormMethods = useForm<NewMemberForm>();
 
   const [modalImportMode, setModalInputMode] = useState<ModalMode>(
-    canSeeOrganization ? "ORGANIZATION" : "INDIVIDUAL"
+    canSeeOrganization
+      ? "ORGANIZATION"
+      : props.inviteEmail && props.inviteEmail.split(",").length > 1
+      ? "BULK"
+      : "INDIVIDUAL"
   );
 
   const createInviteMutation = trpc.viewer.teams.createInvite.useMutation({
@@ -135,7 +142,16 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
     return array;
   }, [t, canSeeOrganization]);
 
-  const newMemberFormMethods = useForm<NewMemberForm>();
+  useEffect(() => {
+    if (props.inviteEmail) {
+      const bulkEmail = props.inviteEmail.split(",");
+      if (bulkEmail.length > 1) {
+        newMemberFormMethods.setValue("emailOrUsername", bulkEmail);
+      } else {
+        newMemberFormMethods.setValue("emailOrUsername", props.inviteEmail);
+      }
+    }
+  }, [props.inviteEmail, newMemberFormMethods, modalImportMode]);
 
   const validateUniqueInvite = (value: string) => {
     if (!props?.members?.length) return true;
@@ -239,11 +255,12 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                       return validateUniqueInvite(value) || t("member_already_invited");
                   },
                 }}
-                render={({ field: { onChange }, fieldState: { error } }) => (
+                render={({ field: { value, onChange }, fieldState: { error } }) => (
                   <>
                     <TextField
                       label={props.justEmailInvites ? t("email") : t("email_or_username")}
                       id="inviteUser"
+                      value={value}
                       name="inviteUser"
                       placeholder="email@example.com"
                       required

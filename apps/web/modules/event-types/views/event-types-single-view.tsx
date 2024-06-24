@@ -594,7 +594,7 @@ const EventTypePage = (props: EventTypeSetupProps) => {
       length,
       ...input
     } = dirtyValues;
-    if (!Number(length)) throw new Error(t("event_setup_length_error"));
+    if (length && !Number(length)) throw new Error(t("event_setup_length_error"));
 
     if (bookingLimits) {
       const isValid = validateIntervalLimitOrder(bookingLimits);

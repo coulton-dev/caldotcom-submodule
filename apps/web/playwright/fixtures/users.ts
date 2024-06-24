@@ -137,7 +137,7 @@ const createTeamAndAddUser = async (
     isDnsSetup,
     index,
   }: {
-    user: { id: number; email: string; username: string | null; role?: MembershipRole };
+    user: { id: number; email: string; username: string | null; role?: MembershipRole; accepted?: boolean };
     isUnpublished?: boolean;
     isOrg?: boolean;
     isOrgVerified?: boolean;
@@ -194,13 +194,13 @@ const createTeamAndAddUser = async (
     data,
   });
 
-  const { role = MembershipRole.OWNER, id: userId } = user;
+  const { role = MembershipRole.OWNER, id: userId, accepted } = user;
   await prisma.membership.create({
     data: {
       teamId: team.id,
       userId,
       role: role,
-      accepted: true,
+      accepted: accepted,
     },
   });
 
@@ -245,6 +245,7 @@ export const createUsersFixture = (
         hasTeam?: true;
         numberOfTeams?: number;
         teamRole?: MembershipRole;
+        membershipAccepted?: boolean;
         teammates?: CustomUserOpts[];
         schedulingType?: SchedulingType;
         teamEventTitle?: string;
@@ -426,6 +427,7 @@ export const createUsersFixture = (
                 email: user.email,
                 username: user.username,
                 role: scenario.teamRole || "OWNER",
+                accepted: scenario.membershipAccepted || true,
               },
               isUnpublished: scenario.isUnpublished,
               isOrg: scenario.isOrg,
