@@ -1,6 +1,8 @@
+import { getOrgFullOrigin } from "@calcom/ee/organizations/lib/orgDomains";
 import { isOrganisationAdmin } from "@calcom/lib/server/queries/organisations";
 import { ProfileRepository } from "@calcom/lib/server/repository/profile";
 import { prisma } from "@calcom/prisma";
+import { RedirectType } from "@calcom/prisma/enums";
 
 import { TRPCError } from "@trpc/server";
 
@@ -59,9 +61,38 @@ export async function bulkDeleteUsersHandler({ ctx, input }: BulkDeleteUsersHand
     userIds: input.userIds,
   });
 
+  const operations = [removeProfiles, deleteMany, removeOrgrelation];
+
+  const organizationId = currentUser.organizationId;
+  const redirectTo = input.redirectTo;
+  if (redirectTo && organizationId) {
+    const users = await ProfileRepository.findManyForOrg({ organizationId });
+    const redirectToUser = await ProfileRepository.findByUserIdAndOrgId({
+      userId: redirectTo,
+      organizationId,
+    });
+
+    if (redirectToUser) {
+      const orgUrlPrefix = getOrgFullOrigin(redirectToUser.organization.slug);
+      const redirectData = users
+        .filter((user) => input.userIds.some((userId) => userId === user.userId))
+        .map((user) => ({
+          from: user.username,
+          toUrl: `${orgUrlPrefix}/${redirectToUser.username}`,
+          type: RedirectType.User,
+          fromOrgId: organizationId,
+        }));
+
+      const createUserRedirection = prisma.tempOrgRedirect.createMany({
+        data: redirectData,
+      });
+      operations.push(createUserRedirection);
+    }
+  }
+
   // We do this in a transaction to make sure that all memberships are removed before we remove the organization relation from the user
   // We also do this to make sure that if one of the queries fail, the whole transaction fails
-  await prisma.$transaction([removeProfiles, deleteMany, removeOrgrelation]);
+  await prisma.$transaction(operations);
 
   return {
     success: true,
