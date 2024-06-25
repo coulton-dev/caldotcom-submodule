@@ -25,6 +25,7 @@ import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { getTranslation } from "@calcom/lib/server";
 import prisma from "@calcom/prisma";
+import type { Prisma, Team } from "@calcom/prisma/client";
 import { SchedulingType } from "@calcom/prisma/enums";
 import { eventTypeBookingFields } from "@calcom/prisma/zod-utils";
 import type { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
@@ -35,7 +36,7 @@ import { Form, Steps, showToast } from "@calcom/ui";
 import { HttpError } from "@lib/core/http/error";
 
 import PageWrapper from "@components/PageWrapper";
-import type { PersonalAccountProps, TeamsProp } from "@components/apps/installation/AccountsStepCard";
+import type { PersonalAccountProps } from "@components/apps/installation/AccountsStepCard";
 import { AccountsStepCard } from "@components/apps/installation/AccountsStepCard";
 import { ConfigureStepCard } from "@components/apps/installation/ConfigureStepCard";
 import { EventTypesStepCard } from "@components/apps/installation/EventTypesStepCard";
@@ -53,8 +54,18 @@ export type TEventType = EventTypeAppSettingsComponentProps["eventType"] &
     bookingFields?: LocationFormValues["bookingFields"];
   };
 
-export type TEventTypesForm = {
+export type TEventTypeGroup = {
+  teamId?: number;
+  userId?: number | null;
+  slug?: string | null;
+  name?: string | null;
+  image: string;
+  isOrganisation?: boolean;
   eventTypes: TEventType[];
+};
+
+export type TEventTypesForm = {
+  eventTypeGroups: TEventTypeGroup[];
 };
 
 const STEPS = [
@@ -74,17 +85,23 @@ type StepObj = Record<
   }
 >;
 
+export type TTeams = (Pick<Team, "id" | "name" | "logoUrl" | "isOrganization"> & {
+  alreadyInstalled: boolean;
+})[];
+
 type OnboardingPageProps = {
   appMetadata: AppMeta;
   step: StepType;
-  teams?: TeamsProp;
+  teams?: TTeams;
   personalAccount: PersonalAccountProps;
   eventTypes?: TEventType[];
+  eventTypeGroups?: TEventTypeGroup[];
   userName: string;
   credentialId?: number;
   showEventTypesStep: boolean;
   isConferencing: boolean;
   installableOnTeams: boolean;
+  isOrg: boolean;
 };
 
 type TUpdateObject = {
@@ -99,7 +116,7 @@ const OnboardingPage = ({
   teams,
   personalAccount,
   appMetadata,
-  eventTypes,
+  eventTypeGroups,
   userName,
   credentialId,
   showEventTypesStep,
@@ -150,15 +167,15 @@ const OnboardingPage = ({
 
   const formMethods = useForm<TEventTypesForm>({
     defaultValues: {
-      eventTypes,
+      eventTypeGroups,
     },
   });
   const mutation = useAddAppMutation(null);
 
   useEffect(() => {
-    eventTypes && formMethods.setValue("eventTypes", eventTypes);
+    eventTypeGroups && formMethods.setValue("eventTypeGroups", eventTypeGroups);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventTypes]);
+  }, [eventTypeGroups]);
 
   const updateMutation = trpc.viewer.eventTypes.update.useMutation({
     onSuccess: async (data) => {
@@ -197,8 +214,7 @@ const OnboardingPage = ({
         type: appMetadata.type,
         variant: appMetadata.variant,
         slug: appMetadata.slug,
-        ...(teamId && { teamId }),
-        // for oAuth apps
+        ...(teamId && { teamId }), // for oAuth apps
         ...(showEventTypesStep && {
           returnTo:
             WEBAPP_URL +
@@ -212,18 +228,6 @@ const OnboardingPage = ({
       {
         onSuccess: (data) => {
           if (data?.setupPending) return;
-          if (showEventTypesStep) {
-            // for non-oAuth apps
-            router.push(
-              getAppOnboardingUrl({
-                slug: appMetadata.slug,
-                step: AppOnboardingSteps.EVENT_TYPES_STEP,
-                teamId,
-              })
-            );
-          } else {
-            router.push(`/apps/installed/${appMetadata.categories[0]}?hl=${appMetadata.slug}`);
-          }
           showToast(t("app_successfully_installed"), "success");
         },
         onError: (error) => {
@@ -255,34 +259,38 @@ const OnboardingPage = ({
               form={formMethods}
               id="outer-event-type-form"
               handleSubmit={async (values) => {
-                const mutationPromises = values?.eventTypes
-                  .filter((eventType) => eventType.selected)
-                  .map((value: TEventType) => {
-                    // Prevent two payment apps to be enabled
-                    // Ok to cast type here because this metadata will be updated as the event type metadata
-                    if (
-                      checkForMultiplePaymentApps(value.metadata as z.infer<typeof EventTypeMetaDataSchema>)
-                    )
-                      throw new Error(t("event_setup_multiple_payment_apps_error"));
-                    if (value.metadata?.apps?.stripe?.paymentOption === "HOLD" && value.seatsPerTimeSlot) {
-                      throw new Error(t("seats_and_no_show_fee_error"));
-                    }
-                    let updateObject: TUpdateObject = { id: value.id };
-                    if (isConferencing) {
-                      updateObject = {
-                        ...updateObject,
-                        locations: value.locations,
-                        bookingFields: value.bookingFields ? value.bookingFields : undefined,
-                      };
-                    } else {
-                      updateObject = {
-                        ...updateObject,
-                        metadata: value.metadata,
-                      };
-                    }
+                let mutationPromises: ReturnType<typeof updateMutation.mutateAsync>[] = [];
+                for (const group of values.eventTypeGroups) {
+                  const promises = group.eventTypes
+                    .filter((eventType) => eventType.selected)
+                    .map((value: TEventType) => {
+                      // Prevent two payment apps to be enabled
+                      // Ok to cast type here because this metadata will be updated as the event type metadata
+                      if (
+                        checkForMultiplePaymentApps(value.metadata as z.infer<typeof EventTypeMetaDataSchema>)
+                      )
+                        throw new Error(t("event_setup_multiple_payment_apps_error"));
+                      if (value.metadata?.apps?.stripe?.paymentOption === "HOLD" && value.seatsPerTimeSlot) {
+                        throw new Error(t("seats_and_no_show_fee_error"));
+                      }
+                      let updateObject: TUpdateObject = { id: value.id };
+                      if (isConferencing) {
+                        updateObject = {
+                          ...updateObject,
+                          locations: value.locations,
+                          bookingFields: value.bookingFields ? value.bookingFields : undefined,
+                        };
+                      } else {
+                        updateObject = {
+                          ...updateObject,
+                          metadata: value.metadata,
+                        };
+                      }
 
-                    return updateMutation.mutateAsync(updateObject);
-                  });
+                      return updateMutation.mutateAsync(updateObject);
+                    });
+                  mutationPromises = [...mutationPromises, ...promises];
+                }
                 try {
                   await Promise.all(mutationPromises);
                   router.push("/event-types");
@@ -305,28 +313,30 @@ const OnboardingPage = ({
                 />
               )}
               {currentStep === AppOnboardingSteps.EVENT_TYPES_STEP &&
-                eventTypes &&
-                Boolean(eventTypes?.length) && (
+                eventTypeGroups &&
+                Boolean(eventTypeGroups?.length) && (
                   <EventTypesStepCard
                     setConfigureStep={setConfigureStep}
                     userName={userName}
                     handleSetUpLater={handleSetUpLater}
                   />
                 )}
-              {currentStep === AppOnboardingSteps.CONFIGURE_STEP && formPortalRef.current && (
-                <ConfigureStepCard
-                  slug={appMetadata.slug}
-                  categories={appMetadata.categories}
-                  credentialId={credentialId}
-                  userName={userName}
-                  loading={updateMutation.isPending}
-                  formPortalRef={formPortalRef}
-                  setConfigureStep={setConfigureStep}
-                  eventTypes={eventTypes}
-                  handleSetUpLater={handleSetUpLater}
-                  isConferencing={isConferencing}
-                />
-              )}
+              {currentStep === AppOnboardingSteps.CONFIGURE_STEP &&
+                formPortalRef.current &&
+                eventTypeGroups && (
+                  <ConfigureStepCard
+                    slug={appMetadata.slug}
+                    categories={appMetadata.categories}
+                    credentialId={credentialId}
+                    userName={userName}
+                    loading={updateMutation.isPending}
+                    formPortalRef={formPortalRef}
+                    setConfigureStep={setConfigureStep}
+                    eventTypeGroups={eventTypeGroups}
+                    handleSetUpLater={handleSetUpLater}
+                    isConferencing={isConferencing}
+                  />
+                )}
             </Form>
           </div>
         </div>
@@ -343,6 +353,7 @@ const ERROR_MESSAGES = {
   userNotFound: "User from session not found",
   appNotExtendsEventType: "App does not extend EventTypes",
   userNotInTeam: "User is not in provided team",
+  appCredsNotFound: "App Credentials not found",
 } as const;
 
 const getUser = async (userId: number) => {
@@ -375,10 +386,12 @@ const getUser = async (userId: number) => {
               id: true,
               name: true,
               logoUrl: true,
+              isOrganization: true,
               parent: {
                 select: {
                   logoUrl: true,
                   name: true,
+                  id: true,
                 },
               },
             },
@@ -392,16 +405,46 @@ const getUser = async (userId: number) => {
     throw new Error(ERROR_MESSAGES.userNotFound);
   }
 
-  const teams = user.teams.map(({ team }) => ({
+  let teams = user.teams.map(({ team }) => ({
     ...team,
     logoUrl: team.parent
       ? getPlaceholderAvatar(team.parent.logoUrl, team.parent.name)
       : getPlaceholderAvatar(team.logoUrl, team.name),
   }));
+  const orgTeam = teams.find((team) => team.isOrganization === true);
+  if (orgTeam?.id) {
+    teams = teams.filter((team) => team?.parent?.id !== orgTeam.id);
+  }
   return {
     ...user,
     teams,
   };
+};
+const getOrgSubTeams = async (parentId: number) => {
+  const teams = await prisma.team.findMany({
+    where: {
+      parentId,
+    },
+    select: {
+      id: true,
+      name: true,
+      logoUrl: true,
+      isOrganization: true,
+      parent: {
+        select: {
+          logoUrl: true,
+          name: true,
+          id: true,
+        },
+      },
+    },
+  });
+  return teams.map((team) => ({
+    ...team,
+    logoUrl: team.parent
+      ? getPlaceholderAvatar(team.parent.logoUrl, team.parent.name)
+      : getPlaceholderAvatar(team.logoUrl, team.name),
+  }));
 };
 
 const getAppBySlug = async (appSlug: string) => {
@@ -413,51 +456,101 @@ const getAppBySlug = async (appSlug: string) => {
   return app;
 };
 
-const getEventTypes = async (userId: number, teamId?: number) => {
-  const eventTypes = (
-    await prisma.eventType.findMany({
+const getEventTypes = async (userId: number, teamIds?: number[]) => {
+  const eventTypeSelect: Prisma.EventTypeSelect = {
+    id: true,
+    description: true,
+    durationLimits: true,
+    metadata: true,
+    length: true,
+    title: true,
+    position: true,
+    recurringEvent: true,
+    requiresConfirmation: true,
+    team: { select: { slug: true } },
+    schedulingType: true,
+    teamId: true,
+    users: { select: { username: true } },
+    seatsPerTimeSlot: true,
+    slug: true,
+    locations: true,
+    userId: true,
+    destinationCalendar: true,
+    bookingFields: true,
+  };
+  let eventTypeGroups: TEventTypeGroup[] | null = [];
+
+  if (teamIds && teamIds.length > 0) {
+    const teams = await prisma.team.findMany({
+      where: {
+        id: {
+          in: teamIds,
+        },
+        isOrganization: false,
+      },
       select: {
         id: true,
-        description: true,
-        durationLimits: true,
-        metadata: true,
-        length: true,
-        title: true,
-        position: true,
-        recurringEvent: true,
-        requiresConfirmation: true,
-        team: { select: { slug: true } },
-        schedulingType: true,
-        teamId: true,
-        users: { select: { username: true } },
-        seatsPerTimeSlot: true,
+        name: true,
+        logoUrl: true,
         slug: true,
-        locations: true,
-        userId: true,
-        destinationCalendar: true,
-        bookingFields: true,
+        isOrganization: true,
+        eventTypes: {
+          select: eventTypeSelect,
+        },
       },
-      /**
-       * filter out managed events for now
-       *  @todo: can install apps to managed event types
-       */
-      where: teamId ? { teamId } : { userId, parent: null, teamId: null },
-    })
-  ).sort((eventTypeA, eventTypeB) => {
-    return eventTypeB.position - eventTypeA.position;
-  });
-
-  if (eventTypes.length === 0) {
-    return [];
+    });
+    eventTypeGroups = teams.map((team) => ({
+      teamId: team.id,
+      slug: team.slug,
+      name: team.name,
+      isOrganisation: team.isOrganization,
+      image: getPlaceholderAvatar(team.logoUrl, team.name),
+      eventTypes: team.eventTypes
+        .map((item) => ({
+          ...item,
+          URL: `${CAL_URL}/${item.team ? `team/${item.team.slug}` : item?.users?.[0]?.username}/${item.slug}`,
+          selected: false,
+          locations: item.locations as unknown as LocationObject[],
+          bookingFields: eventTypeBookingFields.parse(item.bookingFields || []),
+        }))
+        .sort((eventTypeA, eventTypeB) => eventTypeB.position - eventTypeA.position),
+    }));
+  } else {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+        eventTypes: {
+          select: eventTypeSelect,
+        },
+      },
+    });
+    if (user) {
+      eventTypeGroups.push({
+        userId: user.id,
+        slug: user.username,
+        name: user.name,
+        image: getPlaceholderAvatar(user.avatarUrl, user.name),
+        eventTypes: user.eventTypes
+          .map((item) => ({
+            ...item,
+            URL: `${CAL_URL}/${item.team ? `team/${item.team.slug}` : item?.users?.[0]?.username}/${
+              item.slug
+            }`,
+            selected: false,
+            locations: item.locations as unknown as LocationObject[],
+            bookingFields: eventTypeBookingFields.parse(item.bookingFields || []),
+          }))
+          .sort((eventTypeA, eventTypeB) => eventTypeB.position - eventTypeA.position),
+      });
+    }
   }
-
-  return eventTypes.map((item) => ({
-    ...item,
-    URL: `${CAL_URL}/${item.team ? `team/${item.team.slug}` : item?.users?.[0]?.username}/${item.slug}`,
-    selected: false,
-    locations: item.locations as unknown as LocationObject[],
-    bookingFields: eventTypeBookingFields.parse(item.bookingFields || []),
-  }));
+  return eventTypeGroups;
 };
 
 const getAppInstallsBySlug = async (appSlug: string, userId: number, teamIds?: number[]) => {
@@ -482,8 +575,9 @@ const getAppInstallsBySlug = async (appSlug: string, userId: number, teamIds?: n
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
   try {
-    let eventTypes: TEventType[] | null = null;
     const { req, res, query, params } = context;
+    let eventTypeGroups: TEventTypeGroup[] | null = null;
+    let isOrg = false;
     const stepsEnum = z.enum(STEPS);
     const parsedAppSlug = z.coerce.string().parse(query?.slug);
     const parsedStepParam = z.coerce.string().parse(params?.step);
@@ -497,24 +591,24 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
 
     const isConferencing = isConferencingApp(appMetadata.categories);
     const showEventTypesStep = extendsEventType || isConferencing;
+    console.log("sshowEventTypesStephowEventTypesStep: ", showEventTypesStep);
 
     if (!session?.user?.id) throw new Error(ERROR_MESSAGES.userNotAuthed);
 
     const user = await getUser(session.user.id);
 
-    const userTeams = user.teams;
+    let userTeams = user.teams;
     const hasTeams = Boolean(userTeams.length);
 
-    const appInstalls = await getAppInstallsBySlug(
-      parsedAppSlug,
-      user.id,
-      userTeams.map(({ id }) => id)
-    );
-
     if (parsedTeamIdParam) {
-      const isUserMemberOfTeam = userTeams.some((team) => team.id === parsedTeamIdParam);
-      if (!isUserMemberOfTeam) {
+      const currentTeam = userTeams.find((team) => team.id === parsedTeamIdParam);
+      if (!currentTeam?.id) {
         throw new Error(ERROR_MESSAGES.userNotInTeam);
+      }
+      if (currentTeam.isOrganization) {
+        const subTeams = await getOrgSubTeams(parsedTeamIdParam);
+        userTeams = [...userTeams, ...subTeams];
+        isOrg = true;
       }
     }
 
@@ -527,56 +621,61 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
           },
         };
       }
-      eventTypes = await getEventTypes(user.id, parsedTeamIdParam);
-      if (isConferencing) {
+      if (isOrg) {
+        const teamIds = userTeams.map((item) => item.id);
+        eventTypeGroups = await getEventTypes(user.id, teamIds);
+      } else if (parsedTeamIdParam) {
+        eventTypeGroups = await getEventTypes(user.id, [parsedTeamIdParam]);
+      } else {
+        eventTypeGroups = await getEventTypes(user.id);
+      }
+      if (isConferencing && eventTypeGroups) {
         const t = await getTranslation(locale ?? "en", "common");
         const locationOptions = await getLocationGroupedOptions({ userId: user.id }, t);
-        for (let index = 0; index < eventTypes.length; index++) {
-          let eventType = eventTypes[index];
-          let destinationCalendar = eventType.destinationCalendar;
-          if (!destinationCalendar) {
-            destinationCalendar = await prisma.destinationCalendar.findFirst({
-              where: {
-                userId: user.id,
-                eventTypeId: null,
-              },
-            });
-
-            eventType = { ...eventType, destinationCalendar };
-          }
-          if (eventType.schedulingType === SchedulingType.MANAGED) {
-            eventType = {
-              ...eventType,
-              locationOptions: [
-                {
-                  label: t("default"),
-                  options: [
-                    {
-                      label: t("members_default_location"),
-                      value: "",
-                      icon: "/user-check.svg",
-                    },
-                  ],
+        for (let groupIndex = 0; groupIndex < eventTypeGroups.length; groupIndex++) {
+          for (let eventIndex = 0; eventIndex < eventTypeGroups[groupIndex].eventTypes.length; eventIndex++) {
+            let eventType = eventTypeGroups[groupIndex].eventTypes[eventIndex];
+            let destinationCalendar = eventType.destinationCalendar;
+            if (!destinationCalendar) {
+              destinationCalendar = await prisma.destinationCalendar.findFirst({
+                where: {
+                  userId: user.id,
+                  eventTypeId: null,
                 },
-                ...locationOptions,
-              ],
-            };
-          } else {
-            eventType = { ...eventType, locationOptions };
+              });
+              eventType = { ...eventType, destinationCalendar };
+            }
+            if (eventType.schedulingType === SchedulingType.MANAGED) {
+              eventType = {
+                ...eventType,
+                locationOptions: [
+                  {
+                    label: t("default"),
+                    options: [
+                      {
+                        label: t("members_default_location"),
+                        value: "",
+                        icon: "/user-check.svg",
+                      },
+                    ],
+                  },
+                  ...locationOptions,
+                ],
+              };
+            } else {
+              eventType = { ...eventType, locationOptions };
+            }
+            eventTypeGroups[groupIndex].eventTypes[eventIndex] = eventType;
           }
-          eventTypes[index] = eventType;
         }
       }
-
-      if (eventTypes.length === 0) {
-        return {
-          redirect: {
-            permanent: false,
-            destination: `/apps/installed/${appMetadata.categories[0]}?hl=${appMetadata.slug}`,
-          },
-        };
-      }
     }
+
+    const appInstalls = await getAppInstallsBySlug(
+      parsedAppSlug,
+      user.id,
+      userTeams.map(({ id }) => id)
+    );
 
     const personalAccount = {
       id: user.id,
@@ -600,6 +699,11 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     } else {
       credentialId = appInstalls.find((item) => !!item.userId && item.userId == user.id)?.id ?? null;
     }
+    // dont allow app installation without cretendialId
+    if (parsedStepParam == AppOnboardingSteps.EVENT_TYPES_STEP && !credentialId) {
+      throw new Error(ERROR_MESSAGES.appCredsNotFound);
+    }
+
     return {
       props: {
         ...(await serverSideTranslations(locale, ["common"])),
@@ -609,11 +713,12 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
         step: parsedStepParam,
         teams: teamsWithIsAppInstalled,
         personalAccount,
-        eventTypes,
+        eventTypeGroups,
         teamId: parsedTeamIdParam ?? null,
         userName: user.username,
         credentialId,
         isConferencing,
+        isOrg,
         // conferencing apps dont support team install
         installableOnTeams: !isConferencing,
       } as OnboardingPageProps,

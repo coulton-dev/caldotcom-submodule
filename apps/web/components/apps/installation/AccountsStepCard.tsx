@@ -1,17 +1,29 @@
+import type { TTeams } from "@pages/apps/installation/[[...step]]";
 import type { FC } from "react";
 import React, { useState } from "react";
 
 import { classNames } from "@calcom/lib";
 import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import type { Team, User } from "@calcom/prisma/client";
-import { Avatar, StepCard } from "@calcom/ui";
+import type { User } from "@calcom/prisma/client";
+import { StepCard } from "@calcom/ui";
+import { Avatar } from "@calcom/ui";
+
+export type PersonalAccountProps = Pick<User, "id" | "avatarUrl" | "name"> & { alreadyInstalled: boolean };
+
+type AccountStepCardProps = {
+  teams?: TTeams;
+  personalAccount: PersonalAccountProps;
+  onSelect: (id?: number) => void;
+  loading: boolean;
+  installableOnTeams: boolean;
+};
 
 type AccountSelectorProps = {
   avatar?: string;
   name: string;
   alreadyInstalled: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   loading: boolean;
   testId: string;
 };
@@ -35,7 +47,7 @@ const AccountSelector: FC<AccountSelectorProps> = ({
       )}
       data-testid={testId}
       onClick={() => {
-        if (!alreadyInstalled && !loading) {
+        if (!alreadyInstalled && !loading && onClick) {
           setSelected(true);
           onClick();
         }
@@ -51,20 +63,6 @@ const AccountSelector: FC<AccountSelectorProps> = ({
       </div>
     </div>
   );
-};
-
-export type PersonalAccountProps = Pick<User, "id" | "avatarUrl" | "name"> & { alreadyInstalled: boolean };
-
-export type TeamsProp = (Pick<Team, "id" | "name" | "logoUrl"> & {
-  alreadyInstalled: boolean;
-})[];
-
-type AccountStepCardProps = {
-  teams?: TeamsProp;
-  personalAccount: PersonalAccountProps;
-  onSelect: (id?: number) => void;
-  loading: boolean;
-  installableOnTeams: boolean;
 };
 
 export const AccountsStepCard: FC<AccountStepCardProps> = ({
