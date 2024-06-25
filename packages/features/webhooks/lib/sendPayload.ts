@@ -31,7 +31,8 @@ export type WithUTCOffsetType<T> = T & {
 
 export type WebhookDataType = CalendarEvent &
   EventTypeInfo & {
-    metadata?: { [key: string]: string | number | boolean | null };
+    // add object to metadata
+    metadata?: { [key: string]: string | number | boolean | null | Record<string, unknown> };
     bookingId?: number;
     status?: string;
     smsReminderNumber?: string;
@@ -62,6 +63,10 @@ function addUTCOffset(
   }
 
   return data as WithUTCOffsetType<WebhookDataType>;
+}
+
+function getZapierPayloadNonBooking(data: WebhookDataType["metadata"]): string {
+  return JSON.stringify(data?.metadata);
 }
 
 function getZapierPayload(
@@ -161,6 +166,27 @@ const sendPayload = async (
   }
 
   return _sendPayload(secretKey, webhook, body, contentType);
+};
+
+export const sendPayloadNoBooking = async (
+  secretKey: string | null,
+  triggerEvent: string,
+  createdAt: string,
+  webhook: Pick<Webhook, "subscriberUrl" | "appId" | "payloadTemplate">,
+  data: WebhookDataType["metadata"]
+) => {
+  const { appId } = webhook;
+  let body;
+  if (appId === "zapier") {
+    body = getZapierPayloadNonBooking(data);
+  } else {
+    body = JSON.stringify({
+      triggerEvent: triggerEvent,
+      createdAt: createdAt,
+      payload: data,
+    });
+  }
+  return _sendPayload(secretKey, webhook, body, "application/json");
 };
 
 export const sendGenericWebhookPayload = async ({
