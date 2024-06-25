@@ -137,6 +137,7 @@ export const bookingResponses = z
       .optional(),
     smsReminderNumber: z.string().optional(),
     rescheduleReason: z.string().optional(),
+    hostAssignment: z.string().optional(),
   })
   .nullable();
 
@@ -291,6 +292,7 @@ export const bookingCreateSchemaLegacyPropsForApi = z.object({
   location: z.string(),
   smsReminderNumber: z.string().optional().nullable(),
   rescheduleReason: z.string().optional(),
+  hostAssignment: z.string().optional(),
   customInputs: z.array(z.object({ label: z.string(), value: z.union([z.string(), z.boolean()]) })),
 });
 
