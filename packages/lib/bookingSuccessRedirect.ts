@@ -69,7 +69,12 @@ export const useBookingSuccessRedirect = () => {
         },
         searchParams: searchParams ?? undefined,
       });
-      window.parent.location.href = `${url.toString()}?${newSearchParams.toString()}`;
+
+      for (const [key, value] of newSearchParams) {
+        url.searchParams.append(key, value);
+      }
+
+      window.parent.location.href = url.toString();
       return;
     }
     const newSearchParams = getNewSeachParams({ query });
