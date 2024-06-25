@@ -159,6 +159,7 @@ export async function getEventType(
       id: true,
       slug: true,
       minimumBookingNotice: true,
+      seatsMinimumBookingNotice: true,
       length: true,
       offsetStart: true,
       seatsPerTimeSlot: true,
@@ -419,7 +420,7 @@ export async function getAvailableSlots({ input, ctx }: GetScheduleOptions): Pro
     }`
   );
   const getStartTime = (startTimeInput: string, timeZone?: string) => {
-    const startTimeMin = dayjs.utc().add(eventType.minimumBookingNotice || 1, "minutes");
+    const startTimeMin = dayjs.utc().add(1, "minutes");
     const startTime = timeZone === "Etc/GMT" ? dayjs.utc(startTimeInput) : dayjs(startTimeInput).tz(timeZone);
 
     return startTimeMin.isAfter(startTime) ? startTimeMin.tz(timeZone) : startTime;
@@ -618,12 +619,17 @@ export async function getAvailableSlots({ input, ctx }: GetScheduleOptions): Pro
     eventType.schedulingType === SchedulingType.ROUND_ROBIN ||
     allUsersAvailability.length > 1;
 
+  const seatsMinimumBookingNoticeActive = !!(
+    eventType.seatsPerTimeSlot &&
+    eventType.seatsMinimumBookingNotice &&
+    eventType.seatsMinimumBookingNotice < eventType.minimumBookingNotice
+  );
   const timeSlots = getSlots({
     inviteeDate: startTime,
     eventLength: input.duration || eventType.length,
     offsetStart: eventType.offsetStart,
     dateRanges: aggregatedAvailability,
-    minimumBookingNotice: eventType.minimumBookingNotice,
+    minimumBookingNotice: seatsMinimumBookingNoticeActive ? 0 : eventType.minimumBookingNotice,
     frequency: eventType.slotInterval || input.duration || eventType.length,
     organizerTimeZone:
       eventType.timeZone || eventType?.schedule?.timeZone || allUsersAvailability?.[0]?.timeZone,
@@ -783,6 +789,7 @@ export async function getAvailableSlots({ input, ctx }: GetScheduleOptions): Pro
       if (foundAFutureLimitViolation && doesRangeStartFromToday(eventType.periodType)) {
         return withinBoundsSlotsMappedToDate;
       }
+
       const filteredSlots = slots.filter((slot) => {
         const isFutureLimitViolationForTheSlot = isTimeViolatingFutureLimit({
           time: slot.time,
@@ -791,18 +798,29 @@ export async function getAvailableSlots({ input, ctx }: GetScheduleOptions): Pro
         if (isFutureLimitViolationForTheSlot) {
           foundAFutureLimitViolation = true;
         }
-        return (
-          !isFutureLimitViolationForTheSlot &&
-          // TODO: Perf Optmization: Slots calculation logic already seems to consider the minimum booking notice and past booking time and thus there shouldn't be need to filter out slots here.
-          !isTimeOutOfBounds({ time: slot.time, minimumBookingNotice: eventType.minimumBookingNotice })
-        );
+
+        let isOutOfBounds = false;
+        if (seatsMinimumBookingNoticeActive && slot.attendees && slot.attendees > 0) {
+          // logic for handling eventType.seatsMinimumBookingNotice if the eventType has seats
+          isOutOfBounds = isTimeOutOfBounds({
+            time: slot.time,
+            minimumBookingNotice: eventType.seatsMinimumBookingNotice ?? undefined,
+          });
+        } else {
+          // default case for outOfBounds as usual, only if no seats for event type
+          isOutOfBounds = isTimeOutOfBounds({
+            time: slot.time,
+            minimumBookingNotice: eventType.minimumBookingNotice,
+          });
+        }
+
+        return !isFutureLimitViolationForTheSlot && !isOutOfBounds;
       });
 
       if (!filteredSlots.length) {
         // If there are no slots available, we don't set that date, otherwise having an empty slots array makes frontend consider it as an all day OOO case
         return withinBoundsSlotsMappedToDate;
       }
-
       withinBoundsSlotsMappedToDate[date] = filteredSlots;
       return withinBoundsSlotsMappedToDate;
     },

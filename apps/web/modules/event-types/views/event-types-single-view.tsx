@@ -292,6 +292,7 @@ const EventTypePage = (props: EventTypeSetupProps) => {
         },
       })),
       seatsPerTimeSlotEnabled: eventType.seatsPerTimeSlot,
+      seatsMinimumBookingNotice: eventType.seatsMinimumBookingNotice,
       assignAllTeamMembers: eventType.assignAllTeamMembers,
       aiPhoneCallConfig: {
         generalPrompt: eventType.aiPhoneCallConfig?.generalPrompt ?? DEFAULT_PROMPT_VALUE,
