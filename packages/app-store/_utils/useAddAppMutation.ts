@@ -27,15 +27,6 @@ type UseAddAppMutationOptions = CustomUseMutationOptions & {
   returnTo?: string;
 };
 
-type useAddAppMutationVariables = {
-  type?: App["type"];
-  variant?: string;
-  slug?: string;
-  isOmniInstall?: boolean;
-  teamId?: number;
-  onErrorReturnTo?: string;
-};
-
 function useAddAppMutation(_type: App["type"] | null, allOptions?: UseAddAppMutationOptions) {
   const { returnTo, ...options } = allOptions || {};
   const pathname = usePathname();
@@ -50,6 +41,7 @@ function useAddAppMutation(_type: App["type"] | null, allOptions?: UseAddAppMuta
         slug?: string;
         isOmniInstall?: boolean;
         teamId?: number;
+        returnTo?: string;
         defaultInstall?: boolean;
       }
     | ""
@@ -76,6 +68,7 @@ function useAddAppMutation(_type: App["type"] | null, allOptions?: UseAddAppMuta
       const state: IntegrationOAuthCallbackState = {
         returnTo:
           returnTo ||
+          (variables && variables.returnTo ? variables.returnTo : undefined) ||
           WEBAPP_URL +
             getInstalledAppPath(
               { variant: variables && variables.variant, slug: variables && variables.slug },
