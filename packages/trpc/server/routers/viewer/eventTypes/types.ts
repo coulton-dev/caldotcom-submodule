@@ -15,7 +15,11 @@ export const EventTypeUpdateInput = _EventTypeModel
         beginMessage: z.string().nullable(),
         yourPhoneNumber: z.string().default(""),
         numberToCall: z.string().default(""),
-        guestName: z.string().default(""),
+        guestName: z
+          .string()
+          .nullable()
+          .optional()
+          .transform((val) => (!!val ? val : undefined)),
         guestEmail: z.string().nullable().default(null),
         guestCompany: z.string().nullable().default(null),
       })
