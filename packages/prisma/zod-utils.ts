@@ -652,6 +652,7 @@ export const allManagedEventTypeProps: { [k in keyof Omit<Prisma.EventTypeSelect
   lockTimeZoneToggleOnBookingPage: true,
   requiresBookerEmailVerification: true,
   assignAllTeamMembers: true,
+  isRRWeightsEnabled: true,
 };
 
 // All properties that are defined as unlocked based on all managed props

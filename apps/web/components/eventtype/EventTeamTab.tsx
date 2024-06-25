@@ -11,6 +11,7 @@ import AddMembersWithSwitch, {
 } from "@calcom/features/eventtypes/components/AddMembersWithSwitch";
 import AssignAllTeamMembers from "@calcom/features/eventtypes/components/AssignAllTeamMembers";
 import ChildrenEventTypeSelect from "@calcom/features/eventtypes/components/ChildrenEventTypeSelect";
+import { weightDescription } from "@calcom/features/eventtypes/components/HostEditDialogs";
 import type { FormValues, TeamMember } from "@calcom/features/eventtypes/lib/types";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { SchedulingType } from "@calcom/prisma/enums";
@@ -134,6 +135,8 @@ const FixedHosts = ({
                     isFixed: true,
                     userId: parseInt(teamMember.value, 10),
                     priority: 2,
+                    weight: 100,
+                    weightAdjustment: 0,
                   })),
                   { shouldDirty: true }
                 )
@@ -175,6 +178,8 @@ const FixedHosts = ({
                     isFixed: true,
                     userId: parseInt(teamMember.value, 10),
                     priority: 2,
+                    weight: 100,
+                    weightAdjustment: 0,
                   })),
                   { shouldDirty: true }
                 )
@@ -202,7 +207,11 @@ const RoundRobinHosts = ({
 }) => {
   const { t } = useLocale();
 
-  const { setValue } = useFormContext<FormValues>();
+  const { setValue, getValues } = useFormContext<FormValues>();
+
+  const [isRRWeightsEnabled, setIsRRWeightsEnabled] = useState<boolean>(
+    getValues("isRRWeightsEnabled") ?? false
+  );
 
   return (
     <div className="rounded-lg ">
@@ -210,7 +219,30 @@ const RoundRobinHosts = ({
         <Label className="mb-1 text-sm font-semibold">{t("round_robin_hosts")}</Label>
         <p className="text-subtle max-w-full break-words text-sm leading-tight">{t("round_robin_helper")}</p>
       </div>
-      <div className="border-subtle rounded-b-md border border-t-0">
+      <div className="border-subtle rounded-b-md border border-t-0 px-6 pt-4">
+        <Controller<FormValues>
+          name="isRRWeightsEnabled"
+          render={() => (
+            <SettingsToggle
+              title={t("enable_weights")}
+              description={weightDescription}
+              checked={isRRWeightsEnabled}
+              onCheckedChange={(active) => {
+                setValue("isRRWeightsEnabled", active, { shouldDirty: true });
+                setIsRRWeightsEnabled(active);
+                const rrHosts = getValues("hosts").filter((host) => !host.isFixed);
+
+                if (active) {
+                  rrHosts.sort((a, b) => (b.priority ?? 2) - (a.priority ?? 2));
+                } else {
+                  rrHosts.sort((a, b) => (b.weight ?? 2) - (a.weight ?? 2));
+                }
+
+                setValue("hosts", rrHosts);
+              }}
+            />
+          )}
+        />
         <AddMembersWithSwitch
           teamMembers={teamMembers}
           value={value}
@@ -218,17 +250,18 @@ const RoundRobinHosts = ({
           assignAllTeamMembers={assignAllTeamMembers}
           setAssignAllTeamMembers={setAssignAllTeamMembers}
           automaticAddAllEnabled={true}
+          isRRWeightsEnabled={isRRWeightsEnabled}
           isFixed={false}
           onActive={() =>
             setValue(
               "hosts",
-              teamMembers
-                .map((teamMember) => ({
-                  isFixed: false,
-                  userId: parseInt(teamMember.value, 10),
-                  priority: 2,
-                }))
-                .sort((a, b) => b.priority - a.priority),
+              teamMembers.map((teamMember) => ({
+                isFixed: false,
+                userId: parseInt(teamMember.value, 10),
+                priority: 2,
+                weight: 100,
+                weightAdjustment: 0, //this should not be overwritten
+              })),
               { shouldDirty: true }
             )
           }
@@ -340,11 +373,12 @@ const Hosts = ({
                 teamMembers={teamMembers}
                 value={value}
                 onChange={(changeValue) => {
-                  onChange(
-                    [...value.filter((host: Host) => host.isFixed), ...changeValue].sort(
-                      (a, b) => b.priority - a.priority
-                    )
-                  );
+                  const sortedValue = getValues("isRRWeightsEnabled")
+                    ? [...value.filter((host: Host) => host.isFixed), ...changeValue]
+                    : [...value.filter((host: Host) => host.isFixed), ...changeValue].sort(
+                        (a, b) => b.priority - a.priority
+                      );
+                  onChange(sortedValue);
                 }}
                 assignAllTeamMembers={assignAllTeamMembers}
                 setAssignAllTeamMembers={setAssignAllTeamMembers}

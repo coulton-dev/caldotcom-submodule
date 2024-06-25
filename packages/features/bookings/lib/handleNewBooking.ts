@@ -215,6 +215,7 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
       bookingLimits: true,
       durationLimits: true,
       assignAllTeamMembers: true,
+      isRRWeightsEnabled: true,
       parentId: true,
       useEventTypeDestinationCalendarEmail: true,
       owner: {
@@ -244,6 +245,8 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
         select: {
           isFixed: true,
           priority: true,
+          weight: true,
+          weightAdjustment: true,
           user: {
             select: {
               credentials: {
@@ -283,11 +286,13 @@ export const getEventTypesFromDB = async (eventTypeId: number) => {
   };
 };
 
-type IsFixedAwareUser = User & {
+export type IsFixedAwareUser = User & {
   isFixed: boolean;
   credentials: CredentialPayload[];
   organization: { slug: string };
   priority?: number;
+  weight?: number;
+  weightAdjustment?: number;
 };
 
 export async function ensureAvailableUsers(
@@ -1321,7 +1326,6 @@ async function handler(
       });
 
       const notAvailableLuckyUsers: typeof users = [];
-
       loggerWithEventDetails.debug(
         "Computed available users",
         safeStringify({
@@ -1347,7 +1351,8 @@ async function handler(
           availableUsers: luckyUserPool.filter(
             (user) => !luckyUsers.concat(notAvailableLuckyUsers).find((existing) => existing.id === user.id)
           ),
-          eventTypeId: eventType.id,
+          allRRHosts: eventTypeWithUsers.hosts.filter((host) => !host.isFixed),
+          eventType,
         });
         if (!newLuckyUser) {
           break; // prevent infinite loop
