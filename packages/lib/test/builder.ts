@@ -1,5 +1,15 @@
 import { faker } from "@faker-js/faker";
-import type { Booking, EventType, Prisma, Webhook, BookingReference } from "@prisma/client";
+import type {
+  Booking,
+  EventType,
+  Prisma,
+  Webhook,
+  BookingReference,
+  Credential,
+  User,
+  App,
+} from "@prisma/client";
+import type { Session } from "next-auth";
 import type { TFunction } from "next-i18next";
 
 import getICalUID from "@calcom/emails/lib/getICalUID";
@@ -128,19 +138,55 @@ export const buildEventType = (eventType?: Partial<EventType>): EventType => {
   };
 };
 
+export const buildCredential = (credential?: Partial<Credential>): Credential => {
+  return {
+    id: faker.datatype.number(),
+    type: "auditLogs",
+    key: {
+      apiKey: "test",
+      projectId: "10",
+      endpoint: "localhost:3000",
+      disabledEvents: [],
+    },
+    userId: faker.datatype.number(),
+    teamId: null,
+    appId: "test",
+    subscriptionId: null,
+    paymentStatus: null,
+    billingCycleStart: null,
+    invalid: false,
+    ...credential,
+  };
+};
+
+export const buildApp = (app?: Partial<App>): App => {
+  return {
+    slug: "calendar-test",
+    // The directory name for `/packages/app-store/[dirName]`
+    dirName: "calendar-test",
+    // One or multiple categories to which this app belongs
+    categories: ["calendar"],
+    keys: {},
+    enabled: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...app,
+  };
+};
+
 export const buildWebhook = (webhook?: Partial<Webhook>): Webhook => {
   return {
+    userId: faker.datatype.number(),
     id: faker.datatype.uuid(),
+    appId: null,
+    teamId: null,
     eventTypeId: faker.datatype.number(),
     subscriberUrl: "http://mockedURL.com",
     payloadTemplate: null,
     createdAt: faker.datatype.datetime(),
-    appId: null,
-    userId: null,
     secret: faker.lorem.slug(),
     active: true,
     eventTriggers: [],
-    teamId: null,
     ...webhook,
     platform: false,
   };
@@ -195,7 +241,38 @@ export const buildCalendarEvent = (
   };
 };
 
-type UserPayload = Prisma.UserGetPayload<{
+export const buildOrgMockData = () => ({ id: null, isOrgAdmin: false, metadata: {}, requestedSlug: null });
+
+export const buildProfileMockData = () => ({
+  username: "test",
+  upId: "usr-xx",
+  id: null,
+  organizationId: null,
+  organization: null,
+  name: "Test User",
+  avatarUrl: null,
+  startTime: 0,
+  endTime: 1440,
+  bufferTime: 0,
+});
+
+export const buildSession = (session: {
+  user?: User;
+  hasValidLicense?: boolean;
+  token?: { exp?: number; belongsToActiveTeam?: boolean; upId?: number; profileId?: number };
+}): Session => {
+  return {
+    user: { ...(session?.user ?? buildUser()), profile: buildProfileMockData() },
+    hasValidLicense: session?.hasValidLicense ?? true,
+    expires: new Date(
+      typeof session?.token?.exp === "number" ? session?.token?.exp * 1000 : Date.now()
+    ).toISOString(),
+    profileId: session?.token?.profileId ?? 0,
+    upId: session?.token?.upId?.toString() ?? "01",
+  };
+};
+
+export type UserPayload = Prisma.UserGetPayload<{
   select: {
     locked: true;
     name: true;
@@ -245,6 +322,7 @@ type UserPayload = Prisma.UserGetPayload<{
     smsLockState: true;
   };
 }>;
+
 export const buildUser = <T extends Partial<UserPayload>>(
   user?: T & { priority?: number }
 ): UserPayload & { priority: number | null } => {

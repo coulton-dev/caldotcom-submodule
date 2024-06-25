@@ -36,6 +36,7 @@ import {
   sendScheduledEmails,
 } from "@calcom/emails";
 import getICalUID from "@calcom/emails/lib/getICalUID";
+import { handleAuditLogTrigger } from "@calcom/features/audit-logs/lib/handleAuditLogTrigger";
 import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/getBookingFields";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import { handleWebhookTrigger } from "@calcom/features/bookings/lib/handleWebhookTrigger";
@@ -68,6 +69,7 @@ import { ErrorCode } from "@calcom/lib/errorCodes";
 import { getErrorFromUnknown } from "@calcom/lib/errors";
 import { extractBaseEmail } from "@calcom/lib/extract-base-email";
 import { getBookerBaseUrl } from "@calcom/lib/getBookerUrl/server";
+import getIP from "@calcom/lib/getIP";
 import getOrgIdFromMemberOrTeamId from "@calcom/lib/getOrgIdFromMemberOrTeamId";
 import getPaymentAppData from "@calcom/lib/getPaymentAppData";
 import { getTeamIdFromEventType } from "@calcom/lib/getTeamIdFromEventType";
@@ -84,7 +86,12 @@ import { updateWebUser as syncServicesUpdateWebUser } from "@calcom/lib/sync/Syn
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import prisma, { userSelect } from "@calcom/prisma";
 import type { BookingReference } from "@calcom/prisma/client";
-import { BookingStatus, SchedulingType, WebhookTriggerEvents } from "@calcom/prisma/enums";
+import {
+  AuditLogBookingTriggerEvents,
+  BookingStatus,
+  SchedulingType,
+  WebhookTriggerEvents,
+} from "@calcom/prisma/enums";
 import { credentialForCalendarServiceSelect } from "@calcom/prisma/selects/credential";
 import {
   EventTypeMetaDataSchema,
@@ -1193,6 +1200,7 @@ async function handler(
   //this gets the original rescheduled booking
   if (rescheduleUid) {
     // rescheduleUid can be bookingUid and bookingSeatUid
+    // if rescheduled by seat then reassign otherwise use bookingUid
     bookingSeat = await prisma.bookingSeat.findUnique({
       where: {
         referenceUid: rescheduleUid,
@@ -2338,6 +2346,14 @@ async function handler(
       teamId,
       orgId,
     };
+
+    await handleAuditLogTrigger({
+      user: { id: booking.userId ?? -1, name: "" },
+      data: webhookData,
+      trigger: AuditLogBookingTriggerEvents.BOOKING_PAYMENT_INITIATED,
+      source_ip: getIP(req),
+    });
+
     await handleWebhookTrigger({
       subscriberOptions: subscriberOptionsPaymentInitiated,
       eventTrigger: WebhookTriggerEvents.BOOKING_PAYMENT_INITIATED,
@@ -2418,12 +2434,27 @@ async function handler(
 
     // Send Webhook call if hooked to BOOKING_CREATED & BOOKING_RESCHEDULED
     await handleWebhookTrigger({ subscriberOptions, eventTrigger, webhookData });
+
+    await handleAuditLogTrigger({
+      user: { id: booking.userId ?? -1, name: "" },
+      data: webhookData,
+      trigger: rescheduleUid
+        ? AuditLogBookingTriggerEvents.BOOKING_RESCHEDULED
+        : AuditLogBookingTriggerEvents.BOOKING_CREATED,
+      source_ip: getIP(req),
+    });
   } else {
     // if eventType requires confirmation we will trigger the BOOKING REQUESTED Webhook
     const eventTrigger: WebhookTriggerEvents = WebhookTriggerEvents.BOOKING_REQUESTED;
     subscriberOptions.triggerEvent = eventTrigger;
     webhookData.status = "PENDING";
     await handleWebhookTrigger({ subscriberOptions, eventTrigger, webhookData });
+    await handleAuditLogTrigger({
+      user: { id: req.userId ?? -1, name: "" },
+      data: webhookData,
+      trigger: AuditLogBookingTriggerEvents.BOOKING_REQUESTED,
+      source_ip: getIP(req),
+    });
   }
 
   // Avoid passing referencesToCreate with id unique constrain values

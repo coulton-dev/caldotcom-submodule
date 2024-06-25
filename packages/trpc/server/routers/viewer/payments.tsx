@@ -13,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 
 import authedProcedure from "../../procedures/authedProcedure";
 import { router } from "../../trpc";
+import { WebhookTriggerEvents } from ".prisma/client";
 
 export const paymentsRouter = router({
   chargeCard: authedProcedure
@@ -134,6 +135,20 @@ export const paymentsRouter = router({
           triggerEvent: WebhookTriggerEvents.BOOKING_PAID,
           orgId,
         };
+        // await handleAuditLogTrigger({
+        //   event: {
+        //     action: AuditLogTriggerEvents.BOOKING_PAID,
+        //     actor: {
+        //       id: ctx.user.id || "0",
+        //       name: ctx.user.name || "",
+        //     },
+        //     target: {
+        //       name: AuditLogTriggerTargets.BOOKING,
+        //     },
+        //   },
+        //   userId,
+        //   teamId,
+        // });
 
         const subscribers = await getWebhooks(subscriberOptions);
 

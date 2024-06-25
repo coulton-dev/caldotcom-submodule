@@ -1,8 +1,10 @@
 import { prisma } from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
+import { AuditLogCredentialTriggerEvents } from "@calcom/prisma/enums";
 
 import { TRPCError } from "@trpc/server";
 
+import { piiFreeAppKeyTransformer } from "../../../../lib/tests";
 import type { TrpcSessionUser } from "../../../trpc";
 import type { TUpdateAppCredentialsInputSchema } from "./updateAppCredentials.schema";
 import { handleCustomValidations } from "./updateAppCredentials.validator";
@@ -21,9 +23,9 @@ export const updateAppCredentialsHandler = async ({ ctx, input }: UpdateAppCrede
   const credential = await prisma.credential.findFirst({
     where: {
       id: input.credentialId,
-      userId: user.id,
     },
   });
+
   // Check if credential exists
   if (!credential) {
     throw new TRPCError({
@@ -46,5 +48,13 @@ export const updateAppCredentialsHandler = async ({ ctx, input }: UpdateAppCrede
     },
   });
 
-  return !!updated;
+  return {
+    result: !!updated,
+    // TODO: piiFreeAppKeyTransformer should be implementation specific
+    auditLogData: {
+      updatedCredential: piiFreeAppKeyTransformer.parse(updated),
+      oldCredential: piiFreeAppKeyTransformer.parse(credential),
+      trigger: AuditLogCredentialTriggerEvents.CREDENTIAL_KEYS_UPDATED,
+    },
+  };
 };

@@ -4,6 +4,8 @@ import appStore from "@calcom/app-store";
 import { getLocationValueForDB } from "@calcom/app-store/locations";
 import type { LocationObject } from "@calcom/app-store/locations";
 import { sendDeclinedEmails } from "@calcom/emails";
+import { handleAuditLogTrigger } from "@calcom/features/audit-logs/lib/handleAuditLogTrigger";
+import { CRUD } from "@calcom/features/audit-logs/types";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import { handleConfirmation } from "@calcom/features/bookings/lib/handleConfirmation";
 import { handleWebhookTrigger } from "@calcom/features/bookings/lib/handleWebhookTrigger";
@@ -16,7 +18,13 @@ import { getTranslation } from "@calcom/lib/server";
 import { getUsersCredentials } from "@calcom/lib/server/getUsersCredentials";
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import { prisma } from "@calcom/prisma";
-import { BookingStatus, MembershipRole, SchedulingType, WebhookTriggerEvents } from "@calcom/prisma/enums";
+import {
+  AuditLogBookingTriggerEvents,
+  BookingStatus,
+  MembershipRole,
+  SchedulingType,
+  WebhookTriggerEvents,
+} from "@calcom/prisma/enums";
 import type { CalendarEvent } from "@calcom/types/Calendar";
 import type { IAbstractPaymentService, PaymentApp } from "@calcom/types/PaymentService";
 
@@ -31,9 +39,10 @@ type ConfirmOptions = {
     user: NonNullable<TrpcSessionUser>;
   } & BookingsProcedureContext;
   input: TConfirmInputSchema;
+  sourceIp: string;
 };
 
-export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
+export const confirmHandler = async ({ ctx, input, sourceIp }: ConfirmOptions) => {
   const { user } = ctx;
   const { bookingId, recurringEventId, reason: rejectionReason, confirmed } = input;
 
@@ -191,6 +200,7 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
     startTime: booking.startTime.toISOString(),
     endTime: booking.endTime.toISOString(),
     organizer: {
+      id: booking.userId ?? -1,
       email: booking.userPrimaryEmail ?? user.email,
       name: user.name || "Unnamed",
       username: user.username || undefined,
@@ -251,6 +261,7 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       ...user,
       credentials,
     };
+
     const conferenceCredentialId = getLocationValueForDB(
       booking.location ?? "",
       (booking.eventType?.locations as LocationObject[]) || []
@@ -398,6 +409,14 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       status: BookingStatus.REJECTED,
       smsReminderNumber: booking.smsReminderNumber || undefined,
     };
+
+    await handleAuditLogTrigger({
+      user: { id: ctx.user.id ?? -1, name: ctx.user.username ?? "" },
+      data: webhookData,
+      trigger: AuditLogBookingTriggerEvents.BOOKING_REJECTED,
+      source_ip: sourceIp,
+    });
+
     await handleWebhookTrigger({ subscriberOptions, eventTrigger, webhookData });
   }
 

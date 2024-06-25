@@ -34,6 +34,7 @@ import { appKeysSchema as salesforce_zod_ts } from "./salesforce/zod";
 import { appKeysSchema as shimmervideo_zod_ts } from "./shimmervideo/zod";
 import { appKeysSchema as stripepayment_zod_ts } from "./stripepayment/zod";
 import { appKeysSchema as tandemvideo_zod_ts } from "./tandemvideo/zod";
+import { appKeysSchema as audit_log_implementation_zod_ts } from "./templates/audit-log-implementation/zod";
 import { appKeysSchema as booking_pages_tag_zod_ts } from "./templates/booking-pages-tag/zod";
 import { appKeysSchema as event_type_app_card_zod_ts } from "./templates/event-type-app-card/zod";
 import { appKeysSchema as twipla_zod_ts } from "./twipla/zod";
@@ -80,6 +81,7 @@ export const appKeysSchemas = {
   shimmervideo: shimmervideo_zod_ts,
   stripe: stripepayment_zod_ts,
   tandemvideo: tandemvideo_zod_ts,
+  "audit-log-implementation": audit_log_implementation_zod_ts,
   "booking-pages-tag": booking_pages_tag_zod_ts,
   "event-type-app-card": event_type_app_card_zod_ts,
   twipla: twipla_zod_ts,

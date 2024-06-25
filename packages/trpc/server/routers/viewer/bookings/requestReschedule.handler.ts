@@ -10,6 +10,7 @@ import { deleteScheduledEmailReminder } from "@calcom/ee/workflows/lib/reminders
 import { deleteScheduledSMSReminder } from "@calcom/ee/workflows/lib/reminders/smsReminderManager";
 import { deleteScheduledWhatsappReminder } from "@calcom/ee/workflows/lib/reminders/whatsappReminderManager";
 import { sendRequestRescheduleEmail } from "@calcom/emails";
+import { handleAuditLogTrigger } from "@calcom/features/audit-logs/lib/handleAuditLogTrigger";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { deleteWebhookScheduledTriggers } from "@calcom/features/webhooks/lib/scheduleTrigger";
@@ -24,7 +25,7 @@ import { getTranslation } from "@calcom/lib/server";
 import { getUsersCredentials } from "@calcom/lib/server/getUsersCredentials";
 import { prisma } from "@calcom/prisma";
 import type { WebhookTriggerEvents } from "@calcom/prisma/enums";
-import { BookingStatus, WorkflowMethods } from "@calcom/prisma/enums";
+import { AuditLogBookingTriggerEvents, BookingStatus, WorkflowMethods } from "@calcom/prisma/enums";
 import type { CalendarEvent, Person } from "@calcom/types/Calendar";
 
 import { TRPCError } from "@trpc/server";
@@ -302,6 +303,7 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
     teamId,
     orgId,
   };
+
   const webhooks = await getWebhooks(subscriberOptions);
   const promises = webhooks.map((webhook) =>
     sendPayload(webhook.secret, eventTrigger, new Date().toISOString(), webhook, {
@@ -314,5 +316,14 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
       );
     })
   );
-  await Promise.all(promises);
+  return {
+    result: await Promise.all(promises),
+    auditLogData: {
+      trigger: AuditLogBookingTriggerEvents.BOOKING_RESCHEDULED,
+    },
+    data: {
+      ...evt,
+      smsReminderNumber: bookingToReschedule.smsReminderNumber || undefined,
+    },
+  };
 };

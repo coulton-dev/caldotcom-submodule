@@ -4,6 +4,7 @@ import type { EventManagerUser } from "@calcom/core/EventManager";
 import EventManager from "@calcom/core/EventManager";
 import { scheduleMandatoryReminder } from "@calcom/ee/workflows/lib/reminders/scheduleMandatoryReminder";
 import { sendScheduledEmails } from "@calcom/emails";
+import { handleAuditLogTrigger } from "@calcom/features/audit-logs/lib/handleAuditLogTrigger";
 import { scheduleWorkflowReminders } from "@calcom/features/ee/workflows/lib/reminders/reminderScheduler";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { scheduleTrigger } from "@calcom/features/webhooks/lib/scheduleTrigger";
@@ -15,7 +16,7 @@ import { getTeamIdFromEventType } from "@calcom/lib/getTeamIdFromEventType";
 import logger from "@calcom/lib/logger";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import type { PrismaClient } from "@calcom/prisma";
-import { BookingStatus, WebhookTriggerEvents } from "@calcom/prisma/enums";
+import { AuditLogBookingTriggerEvents, BookingStatus, WebhookTriggerEvents } from "@calcom/prisma/enums";
 import { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
 import type { AdditionalInformation, CalendarEvent } from "@calcom/types/Calendar";
 
@@ -384,6 +385,21 @@ export async function handleConfirmation(args: {
       })
     );
 
+    await handleAuditLogTrigger({
+      user: { id: booking.userId ?? -1, name: "" },
+      data: {
+        ...evt,
+        ...eventTypeInfo,
+        bookingId,
+        eventTypeId: booking.eventType?.id,
+        status: "CONFIRMED",
+        smsReminderNumber: booking.smsReminderNumber || undefined,
+        metadata: meetingUrl ? { videoCallUrl: meetingUrl } : undefined,
+      },
+      trigger: AuditLogBookingTriggerEvents.BOOKING_CONFIRMED,
+      source_ip: "127.0.0.1",
+    });
+
     await Promise.all(promises);
 
     if (paid) {
@@ -441,6 +457,21 @@ export async function handleConfirmation(args: {
           );
         })
       );
+
+      await handleAuditLogTrigger({
+        user: { id: booking.userId ?? -1, name: "" },
+        data: {
+          ...evt,
+          ...eventTypeInfo,
+          bookingId,
+          eventTypeId: booking.eventType?.id,
+          status: "PAID",
+          smsReminderNumber: booking.smsReminderNumber || undefined,
+          metadata: meetingUrl ? { videoCallUrl: meetingUrl } : undefined,
+        },
+        trigger: AuditLogBookingTriggerEvents.BOOKING_PAID,
+        source_ip: "127.0.0.1",
+      });
 
       // I don't need to await for this
       Promise.all(bookingPaidSubscribers);

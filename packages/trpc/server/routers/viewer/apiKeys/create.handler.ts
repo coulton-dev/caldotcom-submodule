@@ -2,7 +2,7 @@ import { v4 } from "uuid";
 
 import { generateUniqueAPIKey } from "@calcom/ee/api-keys/lib/apiKeys";
 import prisma from "@calcom/prisma";
-import { MembershipRole } from "@calcom/prisma/enums";
+import { AuditLogApiKeysTriggerEvents, MembershipRole } from "@calcom/prisma/enums";
 
 import type { TrpcSessionUser } from "../../../trpc";
 import { checkPermissions } from "./_auth-middleware";
@@ -25,7 +25,7 @@ export const createHandler = async ({ ctx, input }: CreateHandlerOptions) => {
   /** Only admin or owner can create apiKeys of team (if teamId is passed) */
   await checkPermissions({ userId, teamId, role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] } });
 
-  await prisma.apiKey.create({
+  const createdKey = await prisma.apiKey.create({
     data: {
       id: v4(),
       userId: ctx.user.id,
@@ -41,5 +41,11 @@ export const createHandler = async ({ ctx, input }: CreateHandlerOptions) => {
 
   const prefixedApiKey = `${apiKeyPrefix}${apiKey}`;
 
-  return prefixedApiKey;
+  return {
+    result: prefixedApiKey,
+    auditLogData: {
+      trigger: AuditLogApiKeysTriggerEvents.API_KEY_CREATED,
+      apiKey: createdKey,
+    },
+  };
 };

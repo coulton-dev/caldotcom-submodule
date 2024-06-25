@@ -2,7 +2,9 @@ import { getLocalAppMetadata } from "@calcom/app-store/utils";
 import { sendDisabledAppEmail } from "@calcom/emails";
 import { getTranslation } from "@calcom/lib/server";
 import type { PrismaClient } from "@calcom/prisma";
+import { prisma as importedPrisma } from "@calcom/prisma";
 import { AppCategories } from "@calcom/prisma/enums";
+import { AuditLogAppTriggerEvents } from "@calcom/prisma/enums";
 
 import { TRPCError } from "@trpc/server";
 
@@ -17,8 +19,7 @@ type ToggleOptions = {
   input: TToggleInputSchema;
 };
 
-export const toggleHandler = async ({ input, ctx }: ToggleOptions) => {
-  const { prisma } = ctx;
+export const toggleHandler = async ({ input, ctx: { prisma = importedPrisma } }: ToggleOptions) => {
   const { enabled, slug } = input;
 
   // Get app name from metadata
@@ -167,5 +168,11 @@ export const toggleHandler = async ({ input, ctx }: ToggleOptions) => {
     }
   }
 
-  return app.enabled;
+  return {
+    result: app.enabled,
+    auditLogData: {
+      trigger: AuditLogAppTriggerEvents.APP_TOGGLE,
+      app,
+    },
+  };
 };

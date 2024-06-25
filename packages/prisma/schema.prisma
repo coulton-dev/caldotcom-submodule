@@ -698,6 +698,72 @@ enum PaymentOption {
   HOLD
 }
 
+enum AuditLogBookingTriggerEvents {
+  BOOKING_CREATED
+  BOOKING_PAYMENT_INITIATED
+  BOOKING_PAID
+  BOOKING_RESCHEDULED
+  BOOKING_REQUESTED
+  BOOKING_CANCELLED
+  BOOKING_REJECTED
+  BOOKING_CONFIRMED
+}
+
+enum AuditLogSystemTriggerEvents {
+  SYSTEM_PING
+  SYSTEM_SETTINGS_UPDATED
+  SYSTEM_EVENT_OFF
+  SYSTEM_EVENT_ON
+  SYSTEM_MISC
+}
+
+enum AuditLogAppTriggerEvents {
+  APP_KEYS_UPDATED
+  APP_TOGGLE
+  APP_CREATED
+}
+
+enum AuditLogCredentialTriggerEvents {
+  CREDENTIAL_KEYS_UPDATED
+  CREDENTIAL_CREATED
+  CREDENTIAL_DELETED
+}
+
+enum AuditLogApiKeysTriggerEvents {
+  API_KEY_CREATED
+  API_KEY_UPDATED
+  API_KEY_DELETED
+  API_KEY_USED
+  API_KEY_LIST_ALL_KEYS
+  API_KEY_FIND_KEY
+}
+
+enum AuditLogWebhookTriggerEvents {
+  WEBHOOK_CREATED
+  WEBHOOK_DELETED
+  WEBHOOK_UPDATED
+  WEBHOOK_TESTED
+  WEBHOOK_SCHEDULED
+}
+
+enum AuditLogTriggerTargets {
+  BOOKING
+  WEBHOOKS
+  SYSTEM
+  API_KEYS
+  SCHEDULE
+  EVENT_TYPES
+  TEAMS
+  USER_PROFILE
+  PASSWORD
+  IMPERSONATION
+  APPS
+  CREDENTIAL
+  ROUTING_FORMS
+  WORKFLOWS
+  SETTINGS
+}
+
 enum WebhookTriggerEvents {
   BOOKING_CREATED
   BOOKING_PAYMENT_INITIATED
@@ -813,6 +879,7 @@ enum AppCategories {
   // Wherever video is in use, conferencing should also be used for legacy apps can have it.
   conferencing
   crm
+  auditLogs
 }
 
 model App {

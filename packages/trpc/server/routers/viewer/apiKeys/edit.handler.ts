@@ -1,4 +1,5 @@
 import prisma from "@calcom/prisma";
+import { AuditLogApiKeysTriggerEvents } from "@calcom/prisma/enums";
 
 import type { TrpcSessionUser } from "../../../trpc";
 import type { TEditInputSchema } from "./edit.schema";
@@ -38,5 +39,11 @@ export const editHandler = async ({ ctx, input }: EditOptions) => {
     },
   });
 
-  return updatedApiKey;
+  return {
+    result: updatedApiKey,
+    auditLogData: {
+      trigger: AuditLogApiKeysTriggerEvents.API_KEY_UPDATED,
+      apiKey: updatedApiKey,
+    },
+  };
 };
