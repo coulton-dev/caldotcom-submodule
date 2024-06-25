@@ -47,6 +47,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@calcom/ui";
 
+import { AddGuestsDialog } from "@components/dialog/AddGuestsDialog";
 import { ChargeCardDialog } from "@components/dialog/ChargeCardDialog";
 import { EditLocationDialog } from "@components/dialog/EditLocationDialog";
 import { RescheduleDialog } from "@components/dialog/RescheduleDialog";
@@ -210,6 +211,14 @@ function BookingListItem(booking: BookingItemProps) {
           },
           icon: "map-pin" as const,
         },
+        {
+          id: "add_members",
+          label: t("additional_guests"),
+          onClick: () => {
+            setIsOpenAddGuestsDialog(true);
+          },
+          icon: "users" as const,
+        },
       ],
     },
   ];
@@ -248,6 +257,7 @@ function BookingListItem(booking: BookingItemProps) {
     .format(isUpcoming ? "ddd, D MMM" : "D MMMM YYYY");
   const [isOpenRescheduleDialog, setIsOpenRescheduleDialog] = useState(false);
   const [isOpenSetLocationDialog, setIsOpenLocationDialog] = useState(false);
+  const [isOpenAddGuestsDialog, setIsOpenAddGuestsDialog] = useState(false);
   const setLocationMutation = trpc.viewer.bookings.editLocation.useMutation({
     onSuccess: () => {
       showToast(t("location_updated"), "success");
@@ -329,6 +339,11 @@ function BookingListItem(booking: BookingItemProps) {
         isOpenDialog={isOpenSetLocationDialog}
         setShowLocationModal={setIsOpenLocationDialog}
         teamId={booking.eventType?.team?.id}
+      />
+      <AddGuestsDialog
+        isOpenDialog={isOpenAddGuestsDialog}
+        setIsOpenDialog={setIsOpenAddGuestsDialog}
+        bookingId={booking.id}
       />
       {booking.paid && booking.payment[0] && (
         <ChargeCardDialog
