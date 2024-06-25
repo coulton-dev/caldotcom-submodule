@@ -24,6 +24,14 @@ async function leastRecentlyBookedUser<T extends Pick<User, "id" | "email">>({
         },
         where: {
           eventTypeId,
+          attendees: {
+            some: {
+              noShow: false,
+            },
+          },
+          noShowHost: {
+            not: true,
+          },
         },
         orderBy: {
           createdAt: "desc",
