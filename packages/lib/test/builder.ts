@@ -240,6 +240,7 @@ type UserPayload = Prisma.UserGetPayload<{
     organizationId: true;
     allowSEOIndexing: true;
     receiveMonthlyDigestEmail: true;
+    notficationsAllowed: true;
     movedToProfileId: true;
     isPlatformManaged: true;
     smsLockState: true;
@@ -293,6 +294,7 @@ export const buildUser = <T extends Partial<UserPayload>>(
     organizationId: null,
     allowSEOIndexing: null,
     receiveMonthlyDigestEmail: null,
+    notficationsAllowed: null,
     movedToProfileId: null,
     priority: user?.priority ?? null,
     isPlatformManaged: false,
