@@ -276,6 +276,11 @@ export const EventSetupTab = (
                               teamName: e.teamName,
                             }),
                           });
+                          const newDefaultValue = eventLocationType.defaultValueVariable ? "" : undefined;
+                          formMethods.setValue(
+                            `locations.${index}.${eventLocationType.defaultValueVariable}`,
+                            newDefaultValue
+                          );
                         } else {
                           updateLocationField(index, {
                             type: field.type,
