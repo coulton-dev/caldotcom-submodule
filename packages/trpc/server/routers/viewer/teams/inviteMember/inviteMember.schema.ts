@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MAX_NB_INVITES } from "@calcom/lib/constants";
+import { emailSchema } from "@calcom/lib/emailSchema";
 import { MembershipRole } from "@calcom/prisma/enums";
 
 export const ZInviteMemberInputSchema = z.object({
@@ -27,7 +28,7 @@ export const ZInviteMemberInputSchema = z.object({
     .refine(
       (value) => {
         if (Array.isArray(value)) {
-          return !value.some((email) => !z.string().email().safeParse(email).success);
+          return !value.some((email) => !emailSchema.safeParse(email).success);
         }
         return true;
       },
