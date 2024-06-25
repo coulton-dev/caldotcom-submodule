@@ -3,7 +3,7 @@ import { cloneDeep } from "lodash";
 import { uuid } from "short-uuid";
 
 import EventManager from "@calcom/core/EventManager";
-import { sendScheduledSeatsEmails } from "@calcom/emails";
+import { sendScheduledSeatsEmailsAndSMS } from "@calcom/emails";
 import { refreshCredentials } from "@calcom/features/bookings/lib/getAllCredentialsForUsersOnEvent/refreshCredentials";
 import {
   allowDisablingAttendeeConfirmationEmails,
@@ -36,6 +36,7 @@ const createNewSeat = async (
     fullName,
     bookerEmail,
     responses,
+    bookerPhoneNumber,
   } = rescheduleSeatedBookingObject;
   let { evt } = rescheduleSeatedBookingObject;
   let resultBooking: HandleSeatsResultBooking;
@@ -76,6 +77,7 @@ const createNewSeat = async (
       attendees: {
         create: {
           email: inviteeToAdd.email,
+          phoneNumber: inviteeToAdd.phoneNumber,
           name: inviteeToAdd.name,
           timeZone: inviteeToAdd.timeZone,
           locale: inviteeToAdd.language.locale,
@@ -133,7 +135,7 @@ const createNewSeat = async (
         isAttendeeConfirmationEmailDisabled = allowDisablingAttendeeConfirmationEmails(workflows);
       }
     }
-    await sendScheduledSeatsEmails(
+    await sendScheduledSeatsEmailsAndSMS(
       copyEvent,
       inviteeToAdd,
       newSeat,
@@ -187,7 +189,8 @@ const createNewSeat = async (
       eventTypePaymentAppCredential as IEventTypePaymentCredentialType,
       seatedBooking,
       fullName,
-      bookerEmail
+      bookerEmail,
+      bookerPhoneNumber
     );
 
     resultBooking = { ...foundBooking };

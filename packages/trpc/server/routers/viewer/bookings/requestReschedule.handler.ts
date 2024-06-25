@@ -9,7 +9,7 @@ import dayjs from "@calcom/dayjs";
 import { deleteScheduledEmailReminder } from "@calcom/ee/workflows/lib/reminders/emailReminderManager";
 import { deleteScheduledSMSReminder } from "@calcom/ee/workflows/lib/reminders/smsReminderManager";
 import { deleteScheduledWhatsappReminder } from "@calcom/ee/workflows/lib/reminders/whatsappReminderManager";
-import { sendRequestRescheduleEmail } from "@calcom/emails";
+import { sendRequestRescheduleEmailAndSMS } from "@calcom/emails";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { deleteWebhookScheduledTriggers } from "@calcom/features/webhooks/lib/scheduleTrigger";
@@ -25,7 +25,7 @@ import { getUsersCredentials } from "@calcom/lib/server/getUsersCredentials";
 import { prisma } from "@calcom/prisma";
 import type { WebhookTriggerEvents } from "@calcom/prisma/enums";
 import { BookingStatus, WorkflowMethods } from "@calcom/prisma/enums";
-import type { CalendarEvent, Person } from "@calcom/types/Calendar";
+import type { CalendarEvent, Organizer } from "@calcom/types/Calendar";
 
 import { TRPCError } from "@trpc/server";
 
@@ -59,6 +59,8 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
         include: {
           team: {
             select: {
+              id: true,
+              name: true,
               parentId: true,
             },
           },
@@ -170,7 +172,10 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
   const [mainAttendee] = bookingToReschedule.attendees;
   // @NOTE: Should we assume attendees language?
   const tAttendees = await getTranslation(mainAttendee.locale ?? "en", "common");
-  const usersToPeopleType = (users: PersonAttendeeCommonFields[], selectedLanguage: TFunction): Person[] => {
+  const usersToPeopleType = (
+    users: PersonAttendeeCommonFields[],
+    selectedLanguage: TFunction
+  ): Organizer[] => {
     return users?.map((user) => {
       return {
         email: user.email || "",
@@ -178,6 +183,7 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
         username: user?.username || "",
         language: { translate: selectedLanguage, locale: user.locale || "en" },
         timeZone: user?.timeZone,
+        phoneNumber: user.phoneNumber,
       };
     });
   };
@@ -206,6 +212,13 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
     ),
     organizer,
     iCalUID: bookingToReschedule.iCalUID,
+    team: !!bookingToReschedule.eventType?.team
+      ? {
+          name: bookingToReschedule.eventType.team.name,
+          id: bookingToReschedule.eventType.team.id,
+          members: [],
+        }
+      : undefined,
   });
 
   const director = new CalendarEventDirector();
@@ -250,7 +263,7 @@ export const requestRescheduleHandler = async ({ ctx, input }: RequestReschedule
 
   log.debug("builder.calendarEvent", safeStringify(builder.calendarEvent));
   // Send emails
-  await sendRequestRescheduleEmail(builder.calendarEvent, {
+  await sendRequestRescheduleEmailAndSMS(builder.calendarEvent, {
     rescheduleLink: builder.rescheduleLink,
   });
 

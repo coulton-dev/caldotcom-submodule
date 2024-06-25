@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import appStore from "@calcom/app-store";
 import { getLocationValueForDB } from "@calcom/app-store/locations";
 import type { LocationObject } from "@calcom/app-store/locations";
-import { sendDeclinedEmails } from "@calcom/emails";
+import { sendDeclinedEmailsAndSMS } from "@calcom/emails";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import { handleConfirmation } from "@calcom/features/bookings/lib/handleConfirmation";
 import { handleWebhookTrigger } from "@calcom/features/bookings/lib/handleWebhookTrigger";
@@ -73,6 +73,8 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
           locations: true,
           team: {
             select: {
+              id: true,
+              name: true,
               parentId: true,
             },
           },
@@ -156,6 +158,7 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       name: attendee.name,
       email: attendee.email,
       timeZone: attendee.timeZone,
+      phoneNumber: attendee.phoneNumber,
       language: {
         translate,
         locale,
@@ -208,6 +211,13 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       : [],
     requiresConfirmation: booking?.eventType?.requiresConfirmation ?? false,
     eventTypeId: booking.eventType?.id,
+    team: !!booking.eventType?.team
+      ? {
+          name: booking.eventType.team.name,
+          id: booking.eventType.team.id,
+          members: [],
+        }
+      : undefined,
   };
 
   const recurringEvent = parseRecurringEvent(booking.eventType?.recurringEvent);
@@ -362,7 +372,7 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       });
     }
 
-    await sendDeclinedEmails(evt);
+    await sendDeclinedEmailsAndSMS(evt);
 
     const teamId = await getTeamIdFromEventType({
       eventType: {
