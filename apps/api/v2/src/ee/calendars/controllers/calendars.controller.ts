@@ -1,5 +1,6 @@
 import { GetBusyTimesOutput } from "@/ee/calendars/outputs/busy-times.output";
 import { ConnectedCalendarsOutput } from "@/ee/calendars/outputs/connected-calendars.output";
+import { AppleCalendarService } from "@/ee/calendars/services/apple-calendar.service";
 import { CalendarsService } from "@/ee/calendars/services/calendars.service";
 import { GoogleCalendarService } from "@/ee/calendars/services/gcal.service";
 import { OutlookService } from "@/ee/calendars/services/outlook.service";
@@ -8,6 +9,7 @@ import { GetUser } from "@/modules/auth/decorators/get-user/get-user.decorator";
 import { Permissions } from "@/modules/auth/decorators/permissions/permissions.decorator";
 import { ApiAuthGuard } from "@/modules/auth/guards/api-auth/api-auth.guard";
 import { PermissionsGuard } from "@/modules/auth/guards/permissions/permissions.guard";
+import { TokensRepository } from "@/modules/tokens/tokens.repository";
 import { UserWithProfile } from "@/modules/users/users.repository";
 import {
   Controller,
@@ -21,13 +23,22 @@ import {
   Headers,
   Redirect,
   BadRequestException,
+  Post,
+  Body,
 } from "@nestjs/common";
 import { ApiTags as DocsTags } from "@nestjs/swagger";
+import { User } from "@prisma/client";
 import { Request } from "express";
 import { z } from "zod";
 
 import { APPS_READ } from "@calcom/platform-constants";
-import { SUCCESS_STATUS, CALENDARS, GOOGLE_CALENDAR, OFFICE_365_CALENDAR } from "@calcom/platform-constants";
+import {
+  SUCCESS_STATUS,
+  CALENDARS,
+  GOOGLE_CALENDAR,
+  OFFICE_365_CALENDAR,
+  APPLE_CALENDAR,
+} from "@calcom/platform-constants";
 import { ApiResponse, CalendarBusyTimesInput } from "@calcom/platform-types";
 
 @Controller({
@@ -39,7 +50,9 @@ export class CalendarsController {
   constructor(
     private readonly calendarsService: CalendarsService,
     private readonly outlookService: OutlookService,
-    private readonly googleCalendarService: GoogleCalendarService
+    private readonly googleCalendarService: GoogleCalendarService,
+    private readonly appleCalendarService: AppleCalendarService,
+    private readonly tokensRepository: TokensRepository
   ) {}
 
   @UseGuards(ApiAuthGuard)
@@ -133,6 +146,26 @@ export class CalendarsController {
     }
   }
 
+  @UseGuards(ApiAuthGuard)
+  @Post("/:calendar/sync")
+  async syncCredentials(
+    @GetUser() user: User,
+    @Param("calendar") calendar: string,
+    @Body() body: { username: string; password: string }
+  ): Promise<{ status: string }> {
+    const { username, password } = body;
+
+    switch (calendar) {
+      case APPLE_CALENDAR:
+        return await this.appleCalendarService.save(user.id, user.email, username, password);
+      default:
+        throw new BadRequestException(
+          "Invalid calendar type, available calendars are: ",
+          CALENDARS.join(", ")
+        );
+    }
+  }
+
   @Get("/:calendar/check")
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiAuthGuard, PermissionsGuard)
@@ -143,6 +176,8 @@ export class CalendarsController {
         return await this.outlookService.check(userId);
       case GOOGLE_CALENDAR:
         return await this.googleCalendarService.check(userId);
+      case APPLE_CALENDAR:
+        return await this.appleCalendarService.check(userId);
       default:
         throw new BadRequestException(
           "Invalid calendar type, available calendars are: ",
