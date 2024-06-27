@@ -46,7 +46,6 @@ ${attendee.email}
 
   const organizer = `
 ${calEvent.organizer.name} - ${t("organizer")}
-${calEvent.organizer.email}
   `;
 
   const teamMembers = calEvent.team?.members

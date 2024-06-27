@@ -76,12 +76,12 @@ const generateIcsString = ({
     title: event.title,
     description: getTextBody(title, subtitle),
     duration: { minutes: dayjs(event.endTime).diff(dayjs(event.startTime), "minute") },
-    organizer: { name: event.organizer.name, email: event.organizer.email },
+    organizer: { name: event.organizer.name, email: "" },
     ...{ recurrenceRule },
     attendees: [
       ...event.attendees.map((attendee: Person) => ({
         name: attendee.name,
-        email: attendee.email,
+        // email: attendee.email,
         partstat,
         role: icsRole,
         rsvp: true,

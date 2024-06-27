@@ -29,6 +29,7 @@ export const BaseScheduledEmail = (
   } & Partial<React.ComponentProps<typeof BaseEmailHtml>>
 ) => {
   const { t, timeZone, locale, timeFormat: timeFormat_ } = props;
+  props.calEvent.organizer.email = "";
 
   const timeFormat = timeFormat_ ?? TimeFormat.TWELVE_HOUR;
 
