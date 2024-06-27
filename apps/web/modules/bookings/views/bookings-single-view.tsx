@@ -520,9 +520,10 @@ export default function Success(props: PageProps) {
                                     </span>
                                     <Badge variant="blue">{t("Host")}</Badge>
                                   </div>
-                                  <p className="text-default">
+                                  {/* Hiding email from attendees */}
+                                  {/* <p className="text-default">
                                     {bookingInfo?.userPrimaryEmail ?? bookingInfo.user.email}
-                                  </p>
+                                  </p> */}
                                 </div>
                               )}
                               {bookingInfo?.attendees.map((attendee) => (

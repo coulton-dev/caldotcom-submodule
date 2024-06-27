@@ -1,3 +1,5 @@
+import { APP_NAME } from "@calcom/lib/constants";
+
 import { renderEmail } from "../";
 import generateIcsString from "../lib/generateIcsString";
 import AttendeeScheduledEmail from "./attendee-scheduled-email";
@@ -17,8 +19,8 @@ export default class AttendeeCancelledEmail extends AttendeeScheduledEmail {
         method: "REQUEST",
       },
       to: `${this.attendee.name} <${this.attendee.email}>`,
-      from: `${this.calEvent.organizer.name} <${this.getMailerOptions().from}>`,
-      replyTo: this.calEvent.organizer.email,
+      from: `${APP_NAME} <${this.getMailerOptions().from}>`,
+      // replyTo: this.calEvent.organizer.email,
       subject: `${this.t("event_cancelled_subject", {
         title: this.calEvent.title,
         date: this.getFormattedDate(),
