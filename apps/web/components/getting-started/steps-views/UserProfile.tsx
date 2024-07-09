@@ -36,18 +36,7 @@ const UserProfile = () => {
       if (context.avatarUrl) {
         showToast(t("your_user_profile_updated_successfully"), "success");
         await utils.viewer.me.refetch();
-      } else
-        try {
-          if (eventTypes?.length === 0) {
-            await Promise.all(
-              DEFAULT_EVENT_TYPES.map(async (event) => {
-                return createEventType.mutate(event);
-              })
-            );
-          }
-        } catch (error) {
-          console.error(error);
-        }
+      }
 
       await utils.viewer.me.refetch();
       const redirectUrl = localStorage.getItem("onBoardingRedirect");
@@ -77,25 +66,6 @@ const UserProfile = () => {
       avatarUrl: enteredAvatar,
     });
   }
-
-  const DEFAULT_EVENT_TYPES = [
-    {
-      title: t("15min_meeting"),
-      slug: "15min",
-      length: 15,
-    },
-    {
-      title: t("30min_meeting"),
-      slug: "30min",
-      length: 30,
-    },
-    {
-      title: t("secret_meeting"),
-      slug: "secret",
-      length: 15,
-      hidden: true,
-    },
-  ];
 
   return (
     <form onSubmit={onSubmit}>
