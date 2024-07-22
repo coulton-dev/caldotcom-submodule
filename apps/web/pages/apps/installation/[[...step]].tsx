@@ -116,11 +116,11 @@ const OnboardingPage = ({
       getDescription: (appName) => `${t("select_event_types_description", { appName })}`,
       stepNumber: installableOnTeams ? 2 : 1,
     },
-    [AppOnboardingSteps.CONFIGURE_STEP]: {
-      getTitle: (appName) => `${t("configure_app_header", { appName })}`,
-      getDescription: () => `${t("configure_app_description")}`,
-      stepNumber: installableOnTeams ? 3 : 2,
-    },
+    // [AppOnboardingSteps.CONFIGURE_STEP]: {
+    //   getTitle: (appName) => `${t("configure_app_header", { appName })}`,
+    //   getDescription: () => `${t("configure_app_description")}`,
+    //   stepNumber: 3,
+    // },
   } as const;
   const [configureStep, setConfigureStep] = useState(false);
 
