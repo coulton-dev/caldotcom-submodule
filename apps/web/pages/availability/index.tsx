@@ -194,7 +194,7 @@ export default function AvailabilityPage() {
   const isOrgAndPrivate = data?.isOrganization && data.isPrivate;
   const toggleGroupOptions = [{ value: "mine", label: t("my_availability") }];
 
-  if (!isOrgAndPrivate || isOrgAdminOrOwner) {
+  if (isOrgAdminOrOwner) {
     toggleGroupOptions.push({ value: "team", label: t("team_availability") });
   }
 
@@ -221,7 +221,7 @@ export default function AvailabilityPage() {
             <NewScheduleButton />
           </div>
         }>
-        {searchParams?.get("type") === "team" && (!isOrgAndPrivate || isOrgAdminOrOwner) ? (
+        {searchParams?.get("type") === "team" && isOrgAdminOrOwner ? (
           <AvailabilitySliderTable userTimeFormat={me?.data?.timeFormat ?? null} />
         ) : (
           <AvailabilityListWithQuery />
