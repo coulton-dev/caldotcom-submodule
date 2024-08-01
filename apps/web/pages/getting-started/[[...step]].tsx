@@ -15,10 +15,7 @@ import { Button, StepCard, Steps } from "@calcom/ui";
 import { Icon } from "@calcom/ui";
 
 import PageWrapper from "@components/PageWrapper";
-import { ConnectedCalendars } from "@components/getting-started/steps-views/ConnectCalendars";
-import { ConnectedVideoStep } from "@components/getting-started/steps-views/ConnectedVideoStep";
 import { SetupAvailability } from "@components/getting-started/steps-views/SetupAvailability";
-import UserProfile from "@components/getting-started/steps-views/UserProfile";
 import { UserSettings } from "@components/getting-started/steps-views/UserSettings";
 
 export { getServerSideProps } from "@lib/getting-started/[[...step]]/getServerSideProps";
@@ -144,34 +141,16 @@ const OnboardingPage = () => {
                 {currentStep === "user-settings" && (
                   <UserSettings nextStep={() => goToIndex(1)} hideUsername={from === "signup"} />
                 )}
-                {currentStep === "connected-calendar" && <ConnectedCalendars nextStep={() => goToIndex(2)} />}
+                {/*{currentStep === "connected-calendar" && <ConnectedCalendars nextStep={() => goToIndex(2)} />}*/}
 
-                {currentStep === "connected-video" && <ConnectedVideoStep nextStep={() => goToIndex(3)} />}
+                {/*{currentStep === "connected-video" && <ConnectedVideoStep nextStep={() => goToIndex(3)} />}*/}
 
                 {currentStep === "setup-availability" && (
-                  <SetupAvailability
-                    nextStep={() => goToIndex(4)}
-                    defaultScheduleId={user.defaultScheduleId}
-                  />
+                  <SetupAvailability defaultScheduleId={user.defaultScheduleId} />
                 )}
-                {currentStep === "user-profile" && <UserProfile />}
+                {/*{currentStep === "user-profile" && <UserProfile />}*/}
               </Suspense>
             </StepCard>
-
-            {headers[currentStepIndex]?.skipText && (
-              <div className="flex w-full flex-row justify-center">
-                <Button
-                  color="minimal"
-                  data-testid="skip-step"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    goToIndex(currentStepIndex + 1);
-                  }}
-                  className="mt-8 cursor-pointer px-4 py-2 font-sans text-sm font-medium">
-                  {headers[currentStepIndex]?.skipText}
-                </Button>
-              </div>
-            )}
           </div>
           <div className="flex w-full flex-row justify-center">
             <Button

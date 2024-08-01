@@ -34,7 +34,6 @@ import { HttpError } from "@lib/core/http/error";
 import PageWrapper from "@components/PageWrapper";
 import type { PersonalAccountProps, TeamsProp } from "@components/apps/installation/AccountsStepCard";
 import { AccountsStepCard } from "@components/apps/installation/AccountsStepCard";
-import { ConfigureStepCard } from "@components/apps/installation/ConfigureStepCard";
 import { EventTypesStepCard } from "@components/apps/installation/EventTypesStepCard";
 import { StepHeader } from "@components/apps/installation/StepHeader";
 
@@ -52,11 +51,7 @@ export type TEventTypesForm = {
   eventTypes: TEventType[];
 };
 
-const STEPS = [
-  AppOnboardingSteps.ACCOUNTS_STEP,
-  AppOnboardingSteps.EVENT_TYPES_STEP,
-  AppOnboardingSteps.CONFIGURE_STEP,
-] as const;
+const STEPS = [AppOnboardingSteps.ACCOUNTS_STEP, AppOnboardingSteps.EVENT_TYPES_STEP] as const;
 
 type StepType = (typeof STEPS)[number];
 
@@ -125,11 +120,11 @@ const OnboardingPage = ({
   const [configureStep, setConfigureStep] = useState(false);
 
   const currentStep: AppOnboardingSteps = useMemo(() => {
-    if (step == AppOnboardingSteps.EVENT_TYPES_STEP && configureStep) {
-      return AppOnboardingSteps.CONFIGURE_STEP;
-    }
+    // if (step == AppOnboardingSteps.EVENT_TYPES_STEP && configureStep) {
+    //   return AppOnboardingSteps.CONFIGURE_STEP;
+    // }
     return step;
-  }, [step, configureStep]);
+  }, [step]);
   const stepObj = STEPS_MAP[currentStep];
 
   const maxSteps = useMemo(() => {
@@ -292,20 +287,20 @@ const OnboardingPage = ({
                     handleSetUpLater={handleSetUpLater}
                   />
                 )}
-              {currentStep === AppOnboardingSteps.CONFIGURE_STEP && formPortalRef.current && (
-                <ConfigureStepCard
-                  slug={appMetadata.slug}
-                  categories={appMetadata.categories}
-                  credentialId={credentialId}
-                  userName={userName}
-                  loading={updateMutation.isPending}
-                  formPortalRef={formPortalRef}
-                  setConfigureStep={setConfigureStep}
-                  eventTypes={eventTypes}
-                  handleSetUpLater={handleSetUpLater}
-                  isConferencing={isConferencing}
-                />
-              )}
+              {/*{currentStep === AppOnboardingSteps.CONFIGURE_STEP && formPortalRef.current && (*/}
+              {/*  <ConfigureStepCard*/}
+              {/*    slug={appMetadata.slug}*/}
+              {/*    categories={appMetadata.categories}*/}
+              {/*    credentialId={credentialId}*/}
+              {/*    userName={userName}*/}
+              {/*    loading={updateMutation.isPending}*/}
+              {/*    formPortalRef={formPortalRef}*/}
+              {/*    setConfigureStep={setConfigureStep}*/}
+              {/*    eventTypes={eventTypes}*/}
+              {/*    handleSetUpLater={handleSetUpLater}*/}
+              {/*    isConferencing={isConferencing}*/}
+              {/*  />*/}
+              {/*)}*/}
             </Form>
           </div>
         </div>
