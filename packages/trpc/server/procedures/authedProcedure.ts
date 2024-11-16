@@ -1,7 +1,7 @@
 import captureErrorsMiddleware from "../middlewares/captureErrorsMiddleware";
 import perfMiddleware from "../middlewares/perfMiddleware";
 import { isAdminMiddleware, isAuthed, isOrgAdminMiddleware } from "../middlewares/sessionMiddleware";
-import { procedure, middleware } from "../trpc";
+import { procedure } from "../trpc";
 import publicProcedure from "./publicProcedure";
 
 /*interface IRateLimitOptions {
@@ -29,13 +29,5 @@ const authedProcedure = procedure.use(captureErrorsMiddleware).use(perfMiddlewar
 authedProcedure.use(isRateLimitedByUserIdMiddleware({ intervalInMs, limit }));*/
 export const authedAdminProcedure = publicProcedure.use(captureErrorsMiddleware).use(isAdminMiddleware);
 export const authedOrgAdminProcedure = publicProcedure.use(captureErrorsMiddleware).use(isOrgAdminMiddleware);
-
-export const customAuthedProcedure = publicProcedure.use(() =>
-  middleware(({ ctx, next }) => {
-    console.log({ ctx });
-
-    return next({ ctx });
-  })
-);
 
 export default authedProcedure;

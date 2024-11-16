@@ -5,7 +5,9 @@ import { RedirectType } from "@calcom/prisma/enums";
 import { _UserModel as User } from "@calcom/prisma/zod";
 import type { inferRouterOutputs } from "@calcom/trpc";
 import { TRPCError } from "@calcom/trpc";
-import { authedAdminProcedure, customAuthedProcedure } from "@calcom/trpc/server/procedures/authedProcedure";
+import { authedAdminProcedure } from "@calcom/trpc/server/procedures/authedProcedure";
+import customAuthedProcedure from "@calcom/trpc/server/procedures/customAuthedProcedure";
+import { inviteMembersWithNoInviterPermissionCheck } from "@calcom/trpc/server/routers/viewer/teams/inviteMember/inviteMember.handler";
 import { router } from "@calcom/trpc/server/trpc";
 
 export type UserAdminRouter = typeof userAdminRouter;
@@ -61,11 +63,32 @@ export const userAdminRouter = router({
     const users = await prisma.user.findMany();
     return users;
   }),
-  add: customAuthedProcedure.input(userBodySchema).mutation(async ({ ctx, input }) => {
-    const { prisma } = ctx;
-    const user = await prisma.user.create({ data: input });
-    return { user, message: `User with id: ${user.id} added successfully` };
-  }),
+  add: customAuthedProcedure
+    .input(
+      userBodySchema.extend({
+        orgSlug: z.string(),
+        teamId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { prisma } = ctx;
+      const user = await prisma.user.create({ data: input });
+
+      await inviteMembersWithNoInviterPermissionCheck({
+        inviterName: process.env.EMAIL_FROM_NAME as string,
+        teamId: input.teamId,
+        invitations: [
+          {
+            role: "MEMBER",
+            usernameOrEmail: input.email,
+          },
+        ],
+        language: "en_GB",
+        orgSlug: input.orgSlug,
+      });
+      //await teams
+      return { user, message: `User with id: ${user.id} added successfully` };
+    }),
   update: authedAdminProcedureWithRequestedUser
     .input(userBodySchema.partial())
     .mutation(async ({ ctx, input }) => {
