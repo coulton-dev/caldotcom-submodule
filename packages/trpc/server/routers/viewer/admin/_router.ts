@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { authedAdminProcedure } from "../../../procedures/authedProcedure";
-import publicProcedure from "../../../procedures/publicProcedure";
 import { router, importHandler } from "../../../trpc";
 import { ZCreateSelfHostedLicenseSchema } from "./createSelfHostedLicenseKey.schema";
 import { ZListMembersSchema } from "./listPaginated.schema";
@@ -15,7 +14,7 @@ const NAMESPACE = "admin";
 const namespaced = (s: string) => `${NAMESPACE}.${s}`;
 
 export const adminRouter = router({
-  listPaginated: publicProcedure.input(ZListMembersSchema).query(async (opts) => {
+  listPaginated: authedAdminProcedure.input(ZListMembersSchema).query(async (opts) => {
     const handler = await importHandler(namespaced("listPaginated"), () => import("./listPaginated.handler"));
     return handler(opts);
   }),
