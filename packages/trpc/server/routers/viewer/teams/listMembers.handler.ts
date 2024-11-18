@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { getBookerBaseUrlSync } from "@calcom/lib/getBookerUrl/client";
 import { UserRepository } from "@calcom/lib/server/repository/user";
@@ -16,6 +16,16 @@ type ListMembersHandlerOptions = {
   };
   input: TListMembersInputSchema;
 };
+
+const userSelect = Prisma.validator<Prisma.UserSelect>()({
+  username: true,
+  email: true,
+  name: true,
+  avatarUrl: true,
+  id: true,
+  bio: true,
+  disableImpersonation: true,
+});
 
 export const listMembersHandler = async ({ ctx, input }: ListMembersHandlerOptions) => {
   const { cursor, limit, teamId, searchTerm } = input;

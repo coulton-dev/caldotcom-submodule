@@ -192,3 +192,4 @@ export const RECORDING_IN_PROGRESS_ICON = IS_PRODUCTION
   ? `${WEBAPP_URL}/stop-recording.svg`
   : `https://app.cal.com/stop-recording.svg`;
 
+export const DASHBOARD_KEY = process.env.DASHBOARD_KEY;
