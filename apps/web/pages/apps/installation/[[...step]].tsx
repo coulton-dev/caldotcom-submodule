@@ -1,35 +1,29 @@
 import type { GetServerSidePropsContext } from "next";
+import { getServerSession } from "next-auth";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import Head from "next/head";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Toaster } from "react-hot-toast";
 import { z } from "zod";
 
 import checkForMultiplePaymentApps from "@calcom/app-store/_utils/payments/checkForMultiplePaymentApps";
 import useAddAppMutation from "@calcom/app-store/_utils/useAddAppMutation";
-import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
-import type { EventTypeAppSettingsComponentProps, EventTypeModel } from "@calcom/app-store/types";
-import { isConferencing as isConferencingApp } from "@calcom/app-store/utils";
-import type { LocationObject } from "@calcom/core/location";
+import { appStoreMetadata } from "@calcom/app-store/apps.metadata.generated";
+import type { LocationObject } from "@calcom/app-store/locations";
 import { getLocale } from "@calcom/features/auth/lib/getLocale";
-import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
-import type { LocationFormValues } from "@calcom/features/eventtypes/lib/types";
 import { AppOnboardingSteps } from "@calcom/lib/apps/appOnboardingSteps";
 import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
-import { WEBAPP_URL } from "@calcom/lib/constants";
-import { CAL_URL } from "@calcom/lib/constants";
+import { WEBAPP_URL, CAL_URL } from "@calcom/lib/constants";
 import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { HttpError } from "@calcom/lib/http-error";
 import prisma from "@calcom/prisma";
-import { eventTypeBookingFields } from "@calcom/prisma/zod-utils";
-import type { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import { trpc } from "@calcom/trpc/react";
+import { type EventTypeMetaDataSchema, eventTypeBookingFields } from "@calcom/prisma/zod-utils";
+import { trpc } from "@calcom/trpc";
 import type { AppMeta } from "@calcom/types/App";
-import { Form, Steps, showToast } from "@calcom/ui";
-
-import { HttpError } from "@lib/core/http/error";
+import { showToast, Form, Steps } from "@calcom/ui";
 
 import PageWrapper from "@components/PageWrapper";
 import type { PersonalAccountProps, TeamsProp } from "@components/apps/installation/AccountsStepCard";
@@ -37,23 +31,19 @@ import { AccountsStepCard } from "@components/apps/installation/AccountsStepCard
 import { EventTypesStepCard } from "@components/apps/installation/EventTypesStepCard";
 import { StepHeader } from "@components/apps/installation/StepHeader";
 
-export type TEventType = EventTypeAppSettingsComponentProps["eventType"] &
-  Pick<
-    EventTypeModel,
-    "metadata" | "schedulingType" | "slug" | "requiresConfirmation" | "position" | "destinationCalendar"
-  > & {
-    selected: boolean;
-    locations: LocationFormValues["locations"];
-    bookingFields?: LocationFormValues["bookingFields"];
-  };
+import type {
+  OnboardingPageProps,
+  TEventType,
+  TEventTypesForm,
+} from "~/apps/installation/[[...step]]/step-view";
+import StepView from "~/apps/installation/[[...step]]/step-view";
 
-export type TEventTypesForm = {
-  eventTypes: TEventType[];
-};
+const Page = (props: OnboardingPageProps) => <StepView {...props} isOrg={false} />;
 
 const STEPS = [AppOnboardingSteps.ACCOUNTS_STEP, AppOnboardingSteps.EVENT_TYPES_STEP] as const;
+Page.PageWrapper = PageWrapper;
 
-type StepType = (typeof STEPS)[number];
+export { getServerSideProps } from "@lib/apps/installation/[[...step]]/getServerSideProps";
 
 type StepObj = Record<
   StepType,
@@ -590,4 +580,4 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
 
 OnboardingPage.PageWrapper = PageWrapper;
 
-export default OnboardingPage;
+export default Page;

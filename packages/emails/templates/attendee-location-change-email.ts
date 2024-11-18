@@ -1,23 +1,17 @@
 import { APP_NAME } from "@calcom/lib/constants";
 
 import { renderEmail } from "../";
-import generateIcsString from "../lib/generateIcsString";
+import generateIcsFile, { GenerateIcsRole } from "../lib/generateIcsFile";
 import AttendeeScheduledEmail from "./attendee-scheduled-email";
 
 export default class AttendeeLocationChangeEmail extends AttendeeScheduledEmail {
   protected async getNodeMailerPayload(): Promise<Record<string, unknown>> {
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: generateIcsString({
-          event: this.calEvent,
-          title: this.t("event_location_changed"),
-          subtitle: this.t("emailed_you_and_any_other_attendees"),
-          role: "attendee",
-          status: "CONFIRMED",
-        }),
-        method: "REQUEST",
-      },
+      icalEvent: generateIcsFile({
+        calEvent: this.calEvent,
+        role: GenerateIcsRole.ATTENDEE,
+        status: "CONFIRMED",
+      }),
       to: `${this.attendee.name} <${this.attendee.email}>`,
       from: `${APP_NAME} <${this.getMailerOptions().from}>`,
       // replyTo: this.calEvent.organizer.email,
