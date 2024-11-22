@@ -183,7 +183,6 @@ export async function findUsersWithInviteStatus({
         {
           profiles: {
             some: {
-              organizationId: team.id,
               username: { in: usernamesOrEmails },
             },
           },
@@ -442,6 +441,7 @@ export async function sendSignupToOrganizationEmail({
   inviterName,
   teamId,
   isOrg,
+  username,
 }: {
   usernameOrEmail: string;
   team: { name: string; parent: { name: string } | null };
@@ -449,6 +449,7 @@ export async function sendSignupToOrganizationEmail({
   inviterName: string;
   teamId: number;
   isOrg: boolean;
+  username?: string;
 }) {
   const token: string = randomBytes(32).toString("hex");
 
@@ -469,7 +470,9 @@ export async function sendSignupToOrganizationEmail({
     from: inviterName || `${team.name}'s admin`,
     to: usernameOrEmail,
     teamName: team.name,
-    joinLink: `${WEBAPP_URL}/signup?token=${token}&callbackUrl=/getting-started`,
+    joinLink: `${WEBAPP_URL}/signup?token=${token}&callbackUrl=/getting-started${
+      username ? `&username=${username}` : ""
+    }`,
     isCalcomMember: false,
     isOrg: isOrg,
     parentTeamName: team?.parent?.name,
@@ -906,6 +909,7 @@ export async function handleNewUsersInvites({
   isOrg,
   autoAcceptEmailDomain,
   inviter,
+  username,
 }: {
   invitationsForNewUsers: Invitation[];
   teamId: number;
@@ -917,6 +921,7 @@ export async function handleNewUsersInvites({
     name: string | null;
   };
   isOrg: boolean;
+  username?: string;
 }) {
   const translation = await getTranslation(language, "common");
 
@@ -932,6 +937,7 @@ export async function handleNewUsersInvites({
 
   const sendVerifyEmailsPromises = invitationsForNewUsers.map((invitation) => {
     return sendSignupToOrganizationEmail({
+      username,
       usernameOrEmail: invitation.usernameOrEmail,
       team: {
         name: team.name,

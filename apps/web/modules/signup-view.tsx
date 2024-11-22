@@ -295,6 +295,8 @@ export default function Signup({
       });
   };
 
+  const usernameQuery = searchParams.get("username");
+
   return (
     <>
       {IS_CALCOM && (!IS_EUROPE || userConsentToCookie) ? (
@@ -390,7 +392,7 @@ export default function Signup({
                       username={watch("username") || ""}
                       premium={premiumUsername}
                       usernameTaken={usernameTaken}
-                      disabled={!!orgSlug}
+                      disabled={!!usernameQuery}
                       setUsernameTaken={(value) => setUsernameTaken(value)}
                       data-testid="signup-usernamefield"
                       setPremium={(value) => setPremiumUsername(value)}

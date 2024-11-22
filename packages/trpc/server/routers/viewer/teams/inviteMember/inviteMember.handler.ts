@@ -139,6 +139,7 @@ export const inviteMembersWithNoInviterPermissionCheck = async (
       usernameOrEmail: string;
       role: MembershipRole;
     }[];
+    username?: string;
   } & TargetTeam
 ) => {
   const { inviterName, orgSlug, invitations, language } = data;
@@ -188,6 +189,7 @@ export const inviteMembersWithNoInviterPermissionCheck = async (
       isOrg: isTeamAnOrg,
       inviter,
       autoAcceptEmailDomain: orgState.autoAcceptEmailDomain,
+      username: data.username,
     });
   }
 

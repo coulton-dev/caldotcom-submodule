@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getOrgFullOrigin } from "@calcom/ee/organizations/lib/orgDomains";
+import { emailSchema } from "@calcom/lib/emailSchema";
 import { RedirectType } from "@calcom/prisma/enums";
 import { _UserModel as User } from "@calcom/prisma/zod";
 import type { inferRouterOutputs } from "@calcom/trpc";
@@ -63,16 +64,42 @@ export const userAdminRouter = router({
     const users = await prisma.user.findMany();
     return users;
   }),
+  invite: customAuthedProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        username: z.string(),
+        email: emailSchema,
+      })
+    )
+    .mutation(async ({ input }) => {
+      await inviteMembersWithNoInviterPermissionCheck({
+        inviterName: process.env.EMAIL_FROM_NAME as string,
+        teamId: input.teamId,
+        invitations: [
+          {
+            role: "MEMBER",
+            usernameOrEmail: input.email,
+          },
+        ],
+        language: "en_GB",
+        orgSlug: null,
+        username: input.username,
+      });
+
+      return { message: `User ${input.email} added successfully` };
+    }),
   add: customAuthedProcedure
     .input(
       userBodySchema.extend({
-        orgSlug: z.string(),
         teamId: z.number(),
+        username: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const { prisma } = ctx;
-      const user = await prisma.user.create({ data: input });
+      const { teamId: _, ...rest } = input;
+      const user = await prisma.user.create({ data: rest });
 
       await inviteMembersWithNoInviterPermissionCheck({
         inviterName: process.env.EMAIL_FROM_NAME as string,
@@ -84,7 +111,8 @@ export const userAdminRouter = router({
           },
         ],
         language: "en_GB",
-        orgSlug: input.orgSlug,
+        orgSlug: null,
+        username: input.username,
       });
       //await teams
       return { user, message: `User with id: ${user.id} added successfully` };
