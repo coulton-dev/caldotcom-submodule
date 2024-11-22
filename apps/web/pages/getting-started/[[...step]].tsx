@@ -1,9 +1,8 @@
 import PageWrapper from "@components/PageWrapper";
 
-import type { PageProps } from "~/getting-started/[[...step]]/onboarding-view";
 import OnboardingPage from "~/getting-started/[[...step]]/onboarding-view";
 
-const Page = (props: PageProps) => <OnboardingPage {...props} />;
+const Page = () => <OnboardingPage />;
 
 export { getServerSideProps } from "@lib/getting-started/[[...step]]/getServerSideProps";
 Page.PageWrapper = PageWrapper;

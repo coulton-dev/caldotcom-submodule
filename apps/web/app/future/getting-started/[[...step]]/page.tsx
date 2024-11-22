@@ -6,7 +6,6 @@ import { APP_NAME } from "@calcom/lib/constants";
 
 import { getServerSideProps } from "@lib/getting-started/[[...step]]/getServerSideProps";
 
-import type { PageProps } from "~/getting-started/[[...step]]/onboarding-view";
 import Page from "~/getting-started/[[...step]]/onboarding-view";
 
 export const generateMetadata = async () => {
@@ -19,6 +18,6 @@ export const generateMetadata = async () => {
 
 export default WithLayout({
   getLayout: null,
-  getData: withAppDirSsr<PageProps>(getServerSideProps),
+  getData: withAppDirSsr(getServerSideProps),
   Page,
 });

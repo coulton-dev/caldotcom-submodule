@@ -27,7 +27,6 @@ import { HttpError } from "@lib/core/http/error";
 
 import type { PersonalAccountProps } from "@components/apps/installation/AccountsStepCard";
 import { AccountsStepCard } from "@components/apps/installation/AccountsStepCard";
-import { ConfigureStepCard } from "@components/apps/installation/ConfigureStepCard";
 import { EventTypesStepCard } from "@components/apps/installation/EventTypesStepCard";
 import { StepHeader } from "@components/apps/installation/StepHeader";
 
@@ -120,20 +119,12 @@ const OnboardingPage = ({
       getDescription: (appName) => `${t("select_event_types_description", { appName })}`,
       stepNumber: installableOnTeams ? 2 : 1,
     },
-    [AppOnboardingSteps.CONFIGURE_STEP]: {
-      getTitle: (appName) => `${t("configure_app_header", { appName })}`,
-      getDescription: () => `${t("configure_app_description")}`,
-      stepNumber: installableOnTeams ? 3 : 2,
-    },
   } as const;
-  const [configureStep, setConfigureStep] = useState(false);
+  const [_, setConfigureStep] = useState(false);
 
   const currentStep: AppOnboardingSteps = useMemo(() => {
-    if (step == AppOnboardingSteps.EVENT_TYPES_STEP && configureStep) {
-      return AppOnboardingSteps.CONFIGURE_STEP;
-    }
     return step;
-  }, [step, configureStep]);
+  }, [step]);
   const stepObj = STEPS_MAP[currentStep];
 
   const maxSteps = useMemo(() => {
@@ -298,22 +289,6 @@ const OnboardingPage = ({
                     setConfigureStep={setConfigureStep}
                     userName={userName}
                     handleSetUpLater={handleSetUpLater}
-                  />
-                )}
-              {currentStep === AppOnboardingSteps.CONFIGURE_STEP &&
-                formPortalRef.current &&
-                eventTypeGroups && (
-                  <ConfigureStepCard
-                    slug={appMetadata.slug}
-                    categories={appMetadata.categories}
-                    credentialId={credentialId}
-                    userName={userName}
-                    loading={updateMutation.isPending}
-                    formPortalRef={formPortalRef}
-                    setConfigureStep={setConfigureStep}
-                    eventTypeGroups={eventTypeGroups}
-                    handleSetUpLater={handleSetUpLater}
-                    isConferencing={isConferencing}
                   />
                 )}
             </Form>
