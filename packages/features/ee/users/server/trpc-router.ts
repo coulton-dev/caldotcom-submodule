@@ -89,34 +89,11 @@ export const userAdminRouter = router({
 
       return { message: `User ${input.email} added successfully` };
     }),
-  add: customAuthedProcedure
-    .input(
-      userBodySchema.extend({
-        teamId: z.number(),
-        username: z.string(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { prisma } = ctx;
-      const { teamId: _, ...rest } = input;
-      const user = await prisma.user.create({ data: rest });
-
-      await inviteMembersWithNoInviterPermissionCheck({
-        inviterName: process.env.EMAIL_FROM_NAME as string,
-        teamId: input.teamId,
-        invitations: [
-          {
-            role: "MEMBER",
-            usernameOrEmail: input.email,
-          },
-        ],
-        language: "en_GB",
-        orgSlug: null,
-        username: input.username,
-      });
-      //await teams
-      return { user, message: `User with id: ${user.id} added successfully` };
-    }),
+  add: authedAdminProcedure.input(userBodySchema).mutation(async ({ ctx, input }) => {
+    const { prisma } = ctx;
+    const user = await prisma.user.create({ data: input });
+    return { user, message: `User with id: ${user.id} added successfully` };
+  }),
   update: authedAdminProcedureWithRequestedUser
     .input(userBodySchema.partial())
     .mutation(async ({ ctx, input }) => {
