@@ -199,9 +199,8 @@ export default function AvailabilityPage({ currentOrg }: PageProps) {
   const isOrg = Boolean(data);
   const isOrgAdminOrOwner =
     (data && (data.user.role === MembershipRole.OWNER || data.user.role === MembershipRole.ADMIN)) ?? false;
-  const isOrgAndPrivate = data?.isOrganization && data.isPrivate;
 
-  const canViewTeamAvailability = isOrgAdminOrOwner || !isOrgAndPrivate;
+  const canViewTeamAvailability = isOrgAdminOrOwner;
 
   const toggleGroupOptions = [{ value: "mine", label: t("my_availability") }];
 
